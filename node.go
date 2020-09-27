@@ -21,7 +21,7 @@ func (n *Node) resetElectionTimeout() {
 	n.electionTimeout = 0
 }
 
-func (n *Node) Run() {
+func (n *Node) MainLoop() {
 	for {
 		fmt.Println("node is running...")
 		time.Sleep(time.Second)
