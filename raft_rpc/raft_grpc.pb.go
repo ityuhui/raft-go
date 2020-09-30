@@ -19,7 +19,6 @@ const _ = grpc.SupportPackageIsVersion6
 type RaftServiceClient interface {
 	// define the interface and data type
 	TellMyHeartBeatToFollower(ctx context.Context, in *HeartBeatRequest, opts ...grpc.CallOption) (*HeartBeatReply, error)
-	Vote(ctx context.Context, in *VoteRequest, opts ...grpc.CallOption) (*VoteReply, error)
 }
 
 type raftServiceClient struct {
@@ -39,22 +38,12 @@ func (c *raftServiceClient) TellMyHeartBeatToFollower(ctx context.Context, in *H
 	return out, nil
 }
 
-func (c *raftServiceClient) Vote(ctx context.Context, in *VoteRequest, opts ...grpc.CallOption) (*VoteReply, error) {
-	out := new(VoteReply)
-	err := c.cc.Invoke(ctx, "/raft_rpc.RaftService/Vote", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // RaftServiceServer is the server API for RaftService service.
 // All implementations must embed UnimplementedRaftServiceServer
 // for forward compatibility
 type RaftServiceServer interface {
 	// define the interface and data type
 	TellMyHeartBeatToFollower(context.Context, *HeartBeatRequest) (*HeartBeatReply, error)
-	Vote(context.Context, *VoteRequest) (*VoteReply, error)
 	mustEmbedUnimplementedRaftServiceServer()
 }
 
@@ -64,9 +53,6 @@ type UnimplementedRaftServiceServer struct {
 
 func (*UnimplementedRaftServiceServer) TellMyHeartBeatToFollower(context.Context, *HeartBeatRequest) (*HeartBeatReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TellMyHeartBeatToFollower not implemented")
-}
-func (*UnimplementedRaftServiceServer) Vote(context.Context, *VoteRequest) (*VoteReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Vote not implemented")
 }
 func (*UnimplementedRaftServiceServer) mustEmbedUnimplementedRaftServiceServer() {}
 
@@ -92,24 +78,6 @@ func _RaftService_TellMyHeartBeatToFollower_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RaftService_Vote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(VoteRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RaftServiceServer).Vote(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/raft_rpc.RaftService/Vote",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServiceServer).Vote(ctx, req.(*VoteRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 var _RaftService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "raft_rpc.RaftService",
 	HandlerType: (*RaftServiceServer)(nil),
@@ -118,11 +86,7 @@ var _RaftService_serviceDesc = grpc.ServiceDesc{
 			MethodName: "TellMyHeartBeatToFollower",
 			Handler:    _RaftService_TellMyHeartBeatToFollower_Handler,
 		},
-		{
-			MethodName: "Vote",
-			Handler:    _RaftService_Vote_Handler,
-		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "pb/raft.proto",
+	Metadata: "raft_rpc/raft.proto",
 }

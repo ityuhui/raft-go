@@ -2,5 +2,5 @@ package main
 
 func main() {
 	n := NewNode()
-	n.MainLoop()
+	n.Run()
 }
