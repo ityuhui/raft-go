@@ -5,26 +5,25 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"raft-go/raft_rpc"
 	"time"
 
-	"raft-go/raft_rpc"
-
 	"google.golang.org/grpc"
-)
-
-const (
-	port = ":50051"
 )
 
 type Node struct {
 	role            NodePole
 	electionTimeout int
+	name            string
+	port            string
 }
 
-func NewNode() *Node {
+func NewNode(host string, port string) *Node {
 	return &Node{
 		role:            NodeRole_Follower,
 		electionTimeout: 0,
+		name:            host,
+		port:            port,
 	}
 }
 
@@ -33,20 +32,19 @@ func (n *Node) resetElectionTimeout() {
 }
 
 func (n *Node) Run() {
-	go startRaftServer()
-	mainLoop()
+	go n.startRaftServer()
+	n.mainLoop()
 }
 
 func (n *Node) mainLoop() {
 	for {
-		fmt.Println("node is running...")
+		fmt.Printf("node is running on %s:%s ...\n", n.name, n.port)
 		time.Sleep(time.Second)
 	}
 }
 
-// server is used to implement raft_rpc.RaftServiceServer.
 type server struct {
-	raft_rpc.UnimplementedGreeterServer
+	raft_rpc.UnimplementedRaftServiceServer
 }
 
 func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.HeartBeatRequest) (*raft_rpc.HeartBeatReply, error) {
@@ -55,7 +53,7 @@ func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.Hea
 }
 
 func (n *Node) startRaftServer() {
-	lis, err := net.Listen("tcp", port)
+	lis, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
