@@ -11,6 +11,10 @@ import (
 	"google.golang.org/grpc"
 )
 
+const (
+	ELECTION_TIMEOUT = 5
+)
+
 type Node struct {
 	role            NodePole
 	electionTimeout int
@@ -40,7 +44,16 @@ func (n *Node) mainLoop() {
 	for {
 		fmt.Printf("node is running on %s:%s ...\n", n.name, n.port)
 		time.Sleep(time.Second)
+		if n.electionTimeout > ELECTION_TIMEOUT {
+			n.resetElectionTimeout()
+			n.gotoElectionPeriod()
+		}
 	}
+}
+
+func (n *Node) gotoElectionPeriod() {
+	fmt.Printf("node [%s:%s] starts to electe ...\n", n.name, n.port)
+
 }
 
 type server struct {
@@ -49,6 +62,7 @@ type server struct {
 
 func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.HeartBeatRequest) (*raft_rpc.HeartBeatReply, error) {
 	log.Printf("Received: %v", in.GetName())
+	n.resetElectionTimeout()
 	return &raft_rpc.HeartBeatReply{Message: "Hello " + in.GetName()}, nil
 }
 
