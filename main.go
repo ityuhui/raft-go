@@ -9,14 +9,14 @@ import (
 var (
 	help bool
 
-	host string
-	port string
+	Iam   string
+	peers string
 )
 
 func init() {
 	flag.BoolVar(&help, "help", false, "Show the usage")
-	flag.StringVar(&host, "host", "", "host name or host ip")
-	flag.StringVar(&port, "port", "", "server port")
+	flag.StringVar(&Iam, "Iam", "", "My name:port")
+	flag.StringVar(&peers, "Peers", "", "The name:port of my peers")
 
 	flag.Usage = usage
 }
@@ -24,7 +24,7 @@ func init() {
 func usage() {
 	fmt.Fprintf(os.Stderr, `
 Usage:
-raft-go --host= --port=
+raft-go --Iam=myip:port --Peers=host2:port,host3:port
 `)
 	flag.PrintDefaults()
 }
@@ -32,11 +32,11 @@ raft-go --host= --port=
 func main() {
 
 	flag.Parse()
-	if help || host == "" || port == "" {
+	if help || Iam == "" || peers == "" {
 		flag.Usage()
 		return
 	}
 
-	n := NewNode(host, port)
+	n := NewNodeInstance(Iam, peers)
 	n.Run()
 }

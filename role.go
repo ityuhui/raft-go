@@ -8,14 +8,14 @@ const (
 	NodeRole_Follower  NodePole = 3
 )
 
-func (r NodePole) String() string {
+func (r NodePole) ToString() string {
 	switch r {
 	case NodeRole_Leader:
-		return "Leader"
+		return "leader"
 	case NodeRole_Candidate:
-		return "Candidate"
+		return "candidate"
 	case NodeRole_Follower:
-		return "Follower"
+		return "follower"
 	default:
 		return "UNKNOWN"
 	}
