@@ -6,6 +6,7 @@ import (
 	"log"
 	"net"
 	"raft-go/raft_rpc"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -24,6 +25,7 @@ type Node struct {
 }
 
 var ins *Node = nil
+var lock sync.Mutex
 
 func NewNodeInstance(Iam string, peers string) *Node {
 
@@ -41,7 +43,21 @@ func GetNodeInstance() *Node {
 }
 
 func (n *Node) resetElectionTimeout() {
+	lock.Lock()
 	n.electionTimeout = 0
+	lock.Unlock()
+}
+
+func (n *Node) incElectionTimeout() {
+	lock.Lock()
+	n.electionTimeout += INC_ELECTION_TIMEOUT
+	lock.Unlock()
+}
+
+func (n *Node) setRole(r NodePole) {
+	lock.Lock()
+	n.role = r
+	lock.Unlock()
 }
 
 func (n *Node) Run() {
@@ -51,7 +67,7 @@ func (n *Node) Run() {
 
 func (n *Node) mainLoop() {
 	for {
-		fmt.Printf("I ( %s:%s) am a %s...\n", n.myAddr.name, n.myAddr.port, n.role.ToString())
+		fmt.Printf("I [%s:%s] am a %s...\n", n.myAddr.name, n.myAddr.port, n.role.ToString())
 		time.Sleep(time.Second)
 		if n.electionTimeout > ELECTION_TIMEOUT {
 			n.resetElectionTimeout()
@@ -62,13 +78,9 @@ func (n *Node) mainLoop() {
 	}
 }
 
-func (n *Node) incElectionTimeout() {
-	n.electionTimeout += INC_ELECTION_TIMEOUT
-}
-
 func (n *Node) gotoElectionPeriod() {
-	fmt.Printf("node [%s:%s] starts to electe ...\n", n.myAddr.name, n.myAddr.port)
-	n.role = NodeRole_Candidate
+	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.name, n.myAddr.port)
+	n.setRole(NodeRole_Candidate)
 }
 
 type server struct {
@@ -78,7 +90,7 @@ type server struct {
 func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.HeartBeatRequest) (*raft_rpc.HeartBeatReply, error) {
 	log.Printf("Received: %v", in.GetName())
 	GetNodeInstance().resetElectionTimeout()
-	GetNodeInstance().role = NodeRole_Follower
+	GetNodeInstance().setRole(NodeRole_Follower)
 	return &raft_rpc.HeartBeatReply{Message: "Received the heart beat of leader: " + in.GetName()}, nil
 }
 
