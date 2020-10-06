@@ -19,6 +19,7 @@ const (
 
 type Node struct {
 	role            NodePole
+	currentTerm     int
 	electionTimeout int
 	myAddr          *Address
 	peers           []*Address
@@ -31,6 +32,7 @@ func NewNodeInstance(Iam string, peers string) *Node {
 
 	ins = &Node{
 		role:            NodeRole_Follower,
+		currentTerm:     0,
 		electionTimeout: 0,
 		myAddr:          parseAddress(Iam),
 		peers:           parseAddresses(peers),
@@ -60,6 +62,10 @@ func (n *Node) setRole(r NodePole) {
 	lock.Unlock()
 }
 
+func (n *Node) incCurrentTerm() {
+	n.currentTerm++
+}
+
 func (n *Node) Run() {
 	go n.startRaftServer()
 	n.mainLoop()
@@ -80,6 +86,7 @@ func (n *Node) mainLoop() {
 
 func (n *Node) gotoElectionPeriod() {
 	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.name, n.myAddr.port)
+	n.incCurrentTerm()
 	n.setRole(NodeRole_Candidate)
 }
 
