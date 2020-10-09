@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 	"raft-go/raft_rpc"
 	"sync"
 	"time"
@@ -88,6 +89,10 @@ func (n *Node) gotoElectionPeriod() {
 	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.name, n.myAddr.port)
 	n.incCurrentTerm()
 	n.setRole(NodeRole_Candidate)
+
+	for _, peer := range n.peers {
+		n.sendVoteRequest(peer)
+	}
 }
 
 type server struct {
@@ -99,6 +104,25 @@ func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.Hea
 	GetNodeInstance().resetElectionTimeout()
 	GetNodeInstance().setRole(NodeRole_Follower)
 	return &raft_rpc.HeartBeatReply{Message: "Received the heart beat of leader: " + in.GetName()}, nil
+}
+
+func (n *Node) sendVoteRequest(addr *Address) {
+	// Set up a connection to the server.
+	conn, err := grpc.Dial(addr.name+":"+addr.port, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+	c := raft_rpc.NewGreeterClient(conn)
+
+	// Contact the server and print out its response.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: n.myAddr.name})
+	if err != nil {
+		log.Fatalf("could not greet: %v", err)
+	}
+	log.Printf("Greeting: %s", r.GetMessage())
 }
 
 func (n *Node) startRaftServer() {
