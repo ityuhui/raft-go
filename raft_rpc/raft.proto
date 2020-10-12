@@ -6,15 +6,28 @@ package raft_rpc;
 service RaftService {
     // define the interface and data type
     rpc TellMyHeartBeatToFollower (HeartBeatRequest) returns (HeartBeatReply) {}
+    rpc RequestToVote (VoteRequest) returns (VoteReply) {}
 }
 
-// define the data type of request
+
 message HeartBeatRequest {
     string name = 1;
 }
 
-// define the data type of response
+
 message HeartBeatReply {
     string message = 1;
+}
+
+
+message VoteRequest {
+    string name = 1;
+    int64 termID = 2;
+}
+
+
+message VoteReply {
+    string message = 1;
+    bool   voteYou = 2;
 }
 

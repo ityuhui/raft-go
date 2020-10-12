@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"os"
 	"raft-go/raft_rpc"
 	"sync"
 	"time"
@@ -20,7 +19,7 @@ const (
 
 type Node struct {
 	role            NodePole
-	currentTerm     int
+	currentTerm     int64
 	electionTimeout int
 	myAddr          *Address
 	peers           []*Address
@@ -113,12 +112,13 @@ func (n *Node) sendVoteRequest(addr *Address) {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close()
-	c := raft_rpc.NewGreeterClient(conn)
+	c := raft_rpc.NewRaftServiceClient(conn)
 
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: n.myAddr.name})
+	r, err := c.RequestToVote(ctx, &raft_rpc.VoteRequest{Name: n.myAddr.name,
+		TermID: n.currentTerm})
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
 	}
