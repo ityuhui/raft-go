@@ -75,12 +75,24 @@ func (n *Node) mainLoop() {
 	for {
 		fmt.Printf("I [%s:%s] am a %s...\n", n.myAddr.name, n.myAddr.port, n.role.ToString())
 		time.Sleep(time.Second)
-		if n.electionTimeout > ELECTION_TIMEOUT {
-			n.resetElectionTimeout()
-			n.gotoElectionPeriod()
-		} else {
-			n.incElectionTimeout()
+
+		switch n.role {
+		case NodeRole_Leader:
+			n.sendHeartBeatToFollowers()
+		case NodeRole_Follower:
+			if n.electionTimeout > ELECTION_TIMEOUT {
+				n.resetElectionTimeout()
+				n.gotoElectionPeriod()
+			} else {
+				n.incElectionTimeout()
+			}
 		}
+	}
+}
+
+func (n *Node) sendHeartBeatToFollowers() {
+	for _, peer := range n.peers {
+		n.sendHeartBeatToFollower(peer)
 	}
 }
 
@@ -99,10 +111,16 @@ type server struct {
 }
 
 func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.HeartBeatRequest) (*raft_rpc.HeartBeatReply, error) {
-	log.Printf("Received: %v", in.GetName())
+	log.Printf("Received heart beat from leader: %v", in.GetName())
 	GetNodeInstance().resetElectionTimeout()
 	GetNodeInstance().setRole(NodeRole_Follower)
 	return &raft_rpc.HeartBeatReply{Message: "Received the heart beat of leader: " + in.GetName()}, nil
+}
+
+func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
+	log.Printf("Received vote reply: %v", in.GetName())
+
+	return &raft_rpc.VoteReply{Message: "Received the heart beat of leader: " + in.GetName()}, nil
 }
 
 func (n *Node) sendVoteRequest(addr *Address) {
@@ -120,9 +138,28 @@ func (n *Node) sendVoteRequest(addr *Address) {
 	r, err := c.RequestToVote(ctx, &raft_rpc.VoteRequest{Name: n.myAddr.name,
 		TermID: n.currentTerm})
 	if err != nil {
-		log.Fatalf("could not greet: %v", err)
+		log.Fatalf("could not request to vote: %v", err)
 	}
-	log.Printf("Greeting: %s", r.GetMessage())
+	log.Printf("Requesting: %s", r.GetMessage())
+}
+
+func (n *Node) sendHeartBeatToFollower(addr *Address) {
+	// Set up a connection to the server.
+	conn, err := grpc.Dial(addr.name+":"+addr.port, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+	c := raft_rpc.NewRaftServiceClient(conn)
+
+	// Contact the server and print out its response.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r, err := c.TellMyHeartBeatToFollower(ctx, &raft_rpc.HeartBeatRequest{Name: n.myAddr.name})
+	if err != nil {
+		log.Fatalf("could not tell my heart beat: %v", err)
+	}
+	log.Printf("Telling: %s", r.GetMessage())
 }
 
 func (n *Node) startRaftServer() {
