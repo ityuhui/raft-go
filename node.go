@@ -135,7 +135,7 @@ func (n *Node) sendVoteRequest(addr *Address) {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.RequestToVote(ctx, &raft_rpc.VoteRequest{Name: n.myAddr.name,
+	r, err := c.RequestToVote(ctx, &raft_rpc.VoteRequest{Name: n.myAddr.generateUName(),
 		TermID: n.currentTerm})
 	if err != nil {
 		log.Fatalf("could not request to vote: %v", err)
@@ -155,7 +155,7 @@ func (n *Node) sendHeartBeatToFollower(addr *Address) {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.TellMyHeartBeatToFollower(ctx, &raft_rpc.HeartBeatRequest{Name: n.myAddr.name})
+	r, err := c.TellMyHeartBeatToFollower(ctx, &raft_rpc.HeartBeatRequest{Name: n.myAddr.generateUName()})
 	if err != nil {
 		log.Fatalf("could not tell my heart beat: %v", err)
 	}

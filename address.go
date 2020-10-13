@@ -36,3 +36,7 @@ func parseAddresses(addrStrings string) []*Address {
 
 	return addresses
 }
+
+func (addr *Address) generateUName() string {
+	return addr.name + ":" + addr.port
+}
