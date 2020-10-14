@@ -28,13 +28,13 @@ type Node struct {
 var ins *Node = nil
 var lock sync.Mutex
 
-func NewNodeInstance(Iam string, peers string) *Node {
+func NewNodeInstance(I string, peers string) *Node {
 
 	ins = &Node{
 		role:            NodeRole_Follower,
 		currentTerm:     0,
 		electionTimeout: 0,
-		myAddr:          parseAddress(Iam),
+		myAddr:          parseAddress(I),
 		peers:           parseAddresses(peers),
 	}
 	return ins
@@ -66,6 +66,10 @@ func (n *Node) incCurrentTerm() {
 	n.currentTerm++
 }
 
+func (n *Node) getMyAddress() *Address {
+	return n.myAddr
+}
+
 func (n *Node) Run() {
 	go n.startRaftServer()
 	n.mainLoop()
@@ -73,7 +77,7 @@ func (n *Node) Run() {
 
 func (n *Node) mainLoop() {
 	for {
-		fmt.Printf("I [%s:%s] am a %s...\n", n.myAddr.name, n.myAddr.port, n.role.ToString())
+		fmt.Printf("I [%s] am a %s...\n", n.getMyAddress().generateUName(), n.role.ToString())
 		time.Sleep(time.Second)
 
 		switch n.role {
@@ -114,13 +118,13 @@ func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.Hea
 	log.Printf("Received heart beat from leader: %v", in.GetName())
 	GetNodeInstance().resetElectionTimeout()
 	GetNodeInstance().setRole(NodeRole_Follower)
-	return &raft_rpc.HeartBeatReply{Message: "Received the heart beat of leader: " + in.GetName()}, nil
+	return &raft_rpc.HeartBeatReply{Message: GetNodeInstance().getMyAddress().generateUName() + " received the heart beat."}, nil
 }
 
 func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
-	log.Printf("Received vote reply: %v", in.GetName())
+	log.Printf("Received vote request from: %v", in.GetName())
 
-	return &raft_rpc.VoteReply{Message: "Received the vote request from: " + in.GetName()}, nil
+	return &raft_rpc.VoteReply{Message: "Received the vote reply from: " + GetNodeInstance().getMyAddress().generateUName()}, nil
 }
 
 func (n *Node) sendVoteRequest(addr *Address) {
