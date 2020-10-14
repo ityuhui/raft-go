@@ -9,13 +9,13 @@ import (
 var (
 	help bool
 
-	Iam   string
+	I   string
 	peers string
 )
 
 func init() {
 	flag.BoolVar(&help, "help", false, "Show the usage")
-	flag.StringVar(&Iam, "Iam", "", "My name:port")
+	flag.StringVar(&I, "I", "", "My name:port")
 	flag.StringVar(&peers, "Peers", "", "The name:port of my peers")
 
 	flag.Usage = usage
@@ -24,7 +24,7 @@ func init() {
 func usage() {
 	fmt.Fprintf(os.Stderr, `
 Usage:
-raft-go --Iam=myip:port --Peers=host2:port,host3:port
+raft-go --I=myip:port --Peers=host2:port,host3:port
 `)
 	flag.PrintDefaults()
 }
@@ -32,11 +32,11 @@ raft-go --Iam=myip:port --Peers=host2:port,host3:port
 func main() {
 
 	flag.Parse()
-	if help || Iam == "" || peers == "" {
+	if help || I == "" || peers == "" {
 		flag.Usage()
 		return
 	}
 
-	n := NewNodeInstance(Iam, peers)
+	n := NewNodeInstance(I, peers)
 	n.Run()
 }

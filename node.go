@@ -120,7 +120,7 @@ func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.Hea
 func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
 	log.Printf("Received vote reply: %v", in.GetName())
 
-	return &raft_rpc.VoteReply{Message: "Received the heart beat of leader: " + in.GetName()}, nil
+	return &raft_rpc.VoteReply{Message: "Received the vote request from: " + in.GetName()}, nil
 }
 
 func (n *Node) sendVoteRequest(addr *Address) {
