@@ -28,6 +28,6 @@ message VoteRequest {
 
 message VoteReply {
     string message = 1;
-    bool   voteYou = 2;
+    bool   agree = 2;
 }
 

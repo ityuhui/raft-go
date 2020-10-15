@@ -23,6 +23,8 @@ type Node struct {
 	electionTimeout int
 	myAddr          *Address
 	peers           []*Address
+	voteForTerm     int64
+	voteForPeer     string
 }
 
 var ins *Node = nil
@@ -36,6 +38,8 @@ func NewNodeInstance(I string, peers string) *Node {
 		electionTimeout: 0,
 		myAddr:          parseAddress(I),
 		peers:           parseAddresses(peers),
+		voteForTerm:     0,
+		voteForPeer:     "",
 	}
 	return ins
 }
@@ -68,6 +72,14 @@ func (n *Node) incCurrentTerm() {
 
 func (n *Node) getMyAddress() *Address {
 	return n.myAddr
+}
+
+func (n *Node) getVoteForTerm() int64 {
+	return n.voteForTerm
+}
+
+func (n *Node) getVoteForPeer() string {
+	return n.voteForPeer
 }
 
 func (n *Node) Run() {
@@ -123,8 +135,13 @@ func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.Hea
 
 func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
 	log.Printf("Received vote request from: %v", in.GetName())
+	termID := in.GetTermID()
+	agree := false
+	if GetNodeInstance().getVoteForTerm() < termID {
+		agree = true
+	}
 
-	return &raft_rpc.VoteReply{Message: "Received the vote reply from: " + GetNodeInstance().getMyAddress().generateUName()}, nil
+	return &raft_rpc.VoteReply{Agree: agree, Message: "Received the vote reply from: " + GetNodeInstance().getMyAddress().generateUName()}, nil
 }
 
 func (n *Node) sendVoteRequest(addr *Address) {
