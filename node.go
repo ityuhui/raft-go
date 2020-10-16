@@ -23,8 +23,7 @@ type Node struct {
 	electionTimeout int
 	myAddr          *Address
 	peers           []*Address
-	voteForTerm     int64
-	voteForPeer     string
+	votedFor        string
 }
 
 var ins *Node = nil
@@ -38,8 +37,7 @@ func NewNodeInstance(I string, peers string) *Node {
 		electionTimeout: 0,
 		myAddr:          parseAddress(I),
 		peers:           parseAddresses(peers),
-		voteForTerm:     0,
-		voteForPeer:     "",
+		votedFor:        "",
 	}
 	return ins
 }
@@ -70,16 +68,16 @@ func (n *Node) incCurrentTerm() {
 	n.currentTerm++
 }
 
+func (n *Node) getCurrentTerm() int64 {
+	return n.currentTerm
+}
+
 func (n *Node) getMyAddress() *Address {
 	return n.myAddr
 }
 
-func (n *Node) getVoteForTerm() int64 {
-	return n.voteForTerm
-}
-
-func (n *Node) getVoteForPeer() string {
-	return n.voteForPeer
+func (n *Node) getVotedFor() string {
+	return n.votedFor
 }
 
 func (n *Node) Run() {
@@ -134,14 +132,18 @@ func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.Hea
 }
 
 func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
-	log.Printf("Received vote request from: %v", in.GetName())
-	termID := in.GetTermID()
+	log.Printf("Received vote request from candinate: %v", in.GetName())
+	candinateTerm := in.GetTerm()
+	candinateID := in.GetCandinateID()
 	agree := false
-	if GetNodeInstance().getVoteForTerm() < termID {
+
+	if candinateTerm < GetNodeInstance().getCurrentTerm() {
+		agree = false
+	} else if GetNodeInstance().getVotedFor() == "" || candinateID == GetNodeInstance().getVotedFor() {
 		agree = true
 	}
 
-	return &raft_rpc.VoteReply{Agree: agree, Message: "Received the vote reply from: " + GetNodeInstance().getMyAddress().generateUName()}, nil
+	return &raft_rpc.VoteReply{Term: candinateTerm, VoteGranted: agree}, nil
 }
 
 func (n *Node) sendVoteRequest(addr *Address) {
@@ -157,7 +159,7 @@ func (n *Node) sendVoteRequest(addr *Address) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	r, err := c.RequestToVote(ctx, &raft_rpc.VoteRequest{Name: n.myAddr.generateUName(),
-		TermID: n.currentTerm})
+		TermID: n.getCurrentTerm()})
 	if err != nil {
 		log.Fatalf("could not request to vote: %v", err)
 	}
