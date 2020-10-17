@@ -132,9 +132,9 @@ func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.Hea
 }
 
 func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
-	log.Printf("Received vote request from candinate: %v", in.GetName())
+	log.Printf("Received vote request from candinate: %v", in.GetCandidateId())
 	candinateTerm := in.GetTerm()
-	candinateID := in.GetCandinateID()
+	candinateID := in.GetCandidateId()
 	agree := false
 
 	if candinateTerm < GetNodeInstance().getCurrentTerm() {
@@ -158,12 +158,12 @@ func (n *Node) sendVoteRequest(addr *Address) {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.RequestToVote(ctx, &raft_rpc.VoteRequest{Name: n.myAddr.generateUName(),
-		TermID: n.getCurrentTerm()})
+	r, err := c.RequestToVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.myAddr.generateUName(),
+		Term: n.getCurrentTerm()})
 	if err != nil {
 		log.Fatalf("could not request to vote: %v", err)
 	}
-	log.Printf("Requesting: %s", r.GetMessage())
+	log.Printf("Get voteGranted: %v", r.GetVoteGranted())
 }
 
 func (n *Node) sendHeartBeatToFollower(addr *Address) {
