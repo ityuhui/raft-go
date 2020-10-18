@@ -80,6 +80,10 @@ func (n *Node) getVotedFor() string {
 	return n.votedFor
 }
 
+func (n *Node) setVotedFor(votedFor string) {
+	n.votedFor = votedFor
+}
+
 func (n *Node) Run() {
 	go n.startRaftServer()
 	n.mainLoop()
@@ -115,8 +119,10 @@ func (n *Node) gotoElectionPeriod() {
 	n.incCurrentTerm()
 	n.setRole(NodeRole_Candidate)
 
+	var agreeMap map[string]bool
+
 	for _, peer := range n.peers {
-		n.sendVoteRequest(peer)
+		agreeMap[peer.generateUName()] = n.sendVoteRequest(peer)
 	}
 }
 
@@ -141,12 +147,13 @@ func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*
 		agree = false
 	} else if GetNodeInstance().getVotedFor() == "" || candinateID == GetNodeInstance().getVotedFor() {
 		agree = true
+		GetNodeInstance().setVotedFor(candinateID)
 	}
 
 	return &raft_rpc.VoteReply{Term: candinateTerm, VoteGranted: agree}, nil
 }
 
-func (n *Node) sendVoteRequest(addr *Address) {
+func (n *Node) sendVoteRequest(addr *Address) bool {
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(addr.name+":"+addr.port, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -164,6 +171,7 @@ func (n *Node) sendVoteRequest(addr *Address) {
 		log.Fatalf("could not request to vote: %v", err)
 	}
 	log.Printf("Get voteGranted: %v", r.GetVoteGranted())
+	return r.GetVoteGranted()
 }
 
 func (n *Node) sendHeartBeatToFollower(addr *Address) {
