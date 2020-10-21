@@ -120,9 +120,20 @@ func (n *Node) gotoElectionPeriod() {
 	n.setRole(NodeRole_Candidate)
 
 	var agreeMap map[string]bool
-
 	for _, peer := range n.peers {
 		agreeMap[peer.generateUName()] = n.sendVoteRequest(peer)
+	}
+
+	numOfHalfPeers := len(n.peers) / 2
+	numOfAgree := 1 // vote to myself
+	for _, v := range agreeMap {
+		if v == true {
+			numOfAgree++
+			if numOfAgree > numOfHalfPeers {
+				n.setRole(NodeRole_Leader)
+				break
+			}
+		}
 	}
 }
 
