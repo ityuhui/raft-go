@@ -124,16 +124,16 @@ func (n *Node) gotoElectionPeriod() {
 		agreeMap[peer.generateUName()] = n.sendVoteRequest(peer)
 	}
 
-	numOfHalfPeers := len(n.peers) / 2
-	numOfAgree := 1 // vote to myself
+	numOfHalfPeers := float64(len(n.peers)) / 2.0
+
+	numOfAgree := 1.0 // vote to myself
 	for _, v := range agreeMap {
 		if v == true {
 			numOfAgree++
-			if numOfAgree > numOfHalfPeers {
-				n.setRole(NodeRole_Leader)
-				break
-			}
 		}
+	}
+	if numOfAgree > numOfHalfPeers {
+		n.setRole(NodeRole_Leader)
 	}
 }
 
