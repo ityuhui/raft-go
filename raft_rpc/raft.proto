@@ -12,6 +12,7 @@ service RaftService {
 
 message HeartBeatRequest {
     string name = 1;
+    int64 term = 2;
 }
 
 

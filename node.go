@@ -143,9 +143,15 @@ type server struct {
 
 func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.HeartBeatRequest) (*raft_rpc.HeartBeatReply, error) {
 	log.Printf("Received heart beat from leader: %v", in.GetName())
-	GetNodeInstance().resetElectionTimeout()
-	GetNodeInstance().setRole(NodeRole_Follower)
-	return &raft_rpc.HeartBeatReply{Message: GetNodeInstance().getMyAddress().generateUName() + " received the heart beat."}, nil
+	var message string
+	if in.GetTerm() > GetNodeInstance().getCurrentTerm() {
+		GetNodeInstance().resetElectionTimeout()
+		GetNodeInstance().setRole(NodeRole_Follower)
+		message = GetNodeInstance().getMyAddress().generateUName() + " received the heart beat."
+	} else {
+		message = "Refuse the heart beat from " + in.GetName()
+	}
+	return &raft_rpc.HeartBeatReply{Message: message}, nil
 }
 
 func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
