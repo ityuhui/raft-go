@@ -5,8 +5,8 @@ package raft_rpc;
 // define a service
 service RaftService {
     // define the interface and data type
-    rpc TellMyHeartBeatToFollower (HeartBeatRequest) returns (HeartBeatReply) {}
-    rpc RequestToVote (VoteRequest) returns (VoteReply) {}
+    rpc AppendEntries (AppendRequest) returns (AppendReply) {}
+    rpc RequestVote (VoteRequest) returns (VoteReply) {}
 }
 
 
