@@ -141,7 +141,7 @@ type server struct {
 	raft_rpc.UnimplementedRaftServiceServer
 }
 
-func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.HeartBeatRequest) (*raft_rpc.HeartBeatReply, error) {
+func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.AppendRequest) (*raft_rpc.AppendReply, error) {
 	log.Printf("Received heart beat from leader: %v", in.GetName())
 	var message string
 	if in.GetTerm() > GetNodeInstance().getCurrentTerm() {
@@ -151,7 +151,7 @@ func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.Hea
 	} else {
 		message = "Refuse the heart beat from " + in.GetName()
 	}
-	return &raft_rpc.HeartBeatReply{Message: message}, nil
+	return &raft_rpc.AppendReply{Message: message}, nil
 }
 
 func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
@@ -182,7 +182,7 @@ func (n *Node) sendVoteRequest(addr *Address) bool {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.RequestToVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.myAddr.generateUName(),
+	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.myAddr.generateUName(),
 		Term: n.getCurrentTerm()})
 	if err != nil {
 		log.Fatalf("could not request to vote: %v", err)
@@ -203,7 +203,7 @@ func (n *Node) sendHeartBeatToFollower(addr *Address) {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.TellMyHeartBeatToFollower(ctx, &raft_rpc.HeartBeatRequest{Name: n.myAddr.generateUName()})
+	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{Name: n.myAddr.generateUName()})
 	if err != nil {
 		log.Fatalf("could not tell my heart beat: %v", err)
 	}

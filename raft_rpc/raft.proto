@@ -10,13 +10,13 @@ service RaftService {
 }
 
 
-message HeartBeatRequest {
+message AppendRequest {
     string name = 1;
     int64 term = 2;
 }
 
 
-message HeartBeatReply {
+message AppendReply {
     string message = 1;
 }
 
