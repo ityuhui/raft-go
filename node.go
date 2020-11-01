@@ -118,15 +118,17 @@ func (n *Node) gotoElectionPeriod() {
 	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.name, n.myAddr.port)
 	n.incCurrentTerm()
 	n.setRole(NodeRole_Candidate)
+	n.setVotedFor(n.getMyAddress().generateUName())
+	numOfHalfPeers := float64(len(n.peers)) / 2.0
+	numOfAgree := 1.0 // vote to myself
 
 	var agreeMap map[string]bool
 	for _, peer := range n.peers {
-		agreeMap[peer.generateUName()] = n.sendVoteRequest(peer)
+		agree := n.sendVoteRequest(peer)
+		peerName := peer.generateUName()
+		agreeMap[peerName] = agree
 	}
 
-	numOfHalfPeers := float64(len(n.peers)) / 2.0
-
-	numOfAgree := 1.0 // vote to myself
 	for _, v := range agreeMap {
 		if v == true {
 			numOfAgree++
@@ -154,13 +156,13 @@ func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.App
 	return &raft_rpc.AppendReply{Message: message}, nil
 }
 
-func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
+func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
 	log.Printf("Received vote request from candinate: %v", in.GetCandidateId())
 	candinateTerm := in.GetTerm()
 	candinateID := in.GetCandidateId()
 	agree := false
 
-	if candinateTerm < GetNodeInstance().getCurrentTerm() {
+	if candinateTerm <= GetNodeInstance().getCurrentTerm() {
 		agree = false
 	} else if GetNodeInstance().getVotedFor() == "" || candinateID == GetNodeInstance().getVotedFor() {
 		agree = true
@@ -171,6 +173,7 @@ func (s *server) RequestToVote(ctx context.Context, in *raft_rpc.VoteRequest) (*
 }
 
 func (n *Node) sendVoteRequest(addr *Address) bool {
+	log.Printf("Begin to send vote request to: %v", addr.generateUName())
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(addr.name+":"+addr.port, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
