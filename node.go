@@ -122,7 +122,7 @@ func (n *Node) gotoElectionPeriod() {
 	numOfHalfPeers := float64(len(n.peers)) / 2.0
 	numOfAgree := 1.0 // vote to myself
 
-	var agreeMap map[string]bool
+	agreeMap := make(map[string]bool)
 	for _, peer := range n.peers {
 		agree := n.sendVoteRequest(peer)
 		peerName := peer.generateUName()
