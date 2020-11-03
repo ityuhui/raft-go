@@ -119,7 +119,7 @@ func (n *Node) gotoElectionPeriod() {
 	n.incCurrentTerm()
 	n.setRole(NodeRole_Candidate)
 	n.setVotedFor(n.getMyAddress().generateUName())
-	numOfHalfPeers := float64(len(n.peers)) / 2.0
+	halfNumOfNodes := (float64(len(n.peers)) + 1.0) / 2.0
 	numOfAgree := 1.0 // vote to myself
 
 	agreeMap := make(map[string]bool)
@@ -134,7 +134,7 @@ func (n *Node) gotoElectionPeriod() {
 			numOfAgree++
 		}
 	}
-	if numOfAgree > numOfHalfPeers {
+	if numOfAgree > halfNumOfNodes {
 		n.setRole(NodeRole_Leader)
 	}
 }
@@ -143,8 +143,8 @@ type server struct {
 	raft_rpc.UnimplementedRaftServiceServer
 }
 
-func (s *server) TellMyHeartBeatToFollower(ctx context.Context, in *raft_rpc.AppendRequest) (*raft_rpc.AppendReply, error) {
-	log.Printf("Received heart beat from leader: %v", in.GetName())
+func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) (*raft_rpc.AppendReply, error) {
+	log.Printf("Received heart beat from leader: %v, term %v", in.GetName(), in.GetTerm())
 	var message string
 	if in.GetTerm() > GetNodeInstance().getCurrentTerm() {
 		GetNodeInstance().resetElectionTimeout()
@@ -206,7 +206,7 @@ func (n *Node) sendHeartBeatToFollower(addr *Address) {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{Name: n.myAddr.generateUName()})
+	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{Name: n.myAddr.generateUName(), Term: n.getCurrentTerm()})
 	if err != nil {
 		log.Fatalf("could not tell my heart beat: %v", err)
 	}
