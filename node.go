@@ -18,12 +18,17 @@ const (
 )
 
 type Node struct {
+	// eclection
 	role            NodePole
 	currentTerm     int64
 	electionTimeout int
 	myAddr          *Address
-	peers           []*Address
+	peers           []*Peer
 	votedFor        string
+
+	// log state machine
+	log       []*LogEntry
+	nextIndex []int64
 }
 
 var ins *Node = nil
@@ -36,7 +41,7 @@ func NewNodeInstance(I string, peers string) *Node {
 		currentTerm:     0,
 		electionTimeout: 0,
 		myAddr:          parseAddress(I),
-		peers:           parseAddresses(peers),
+		peers:           initPeers(peers),
 		votedFor:        "",
 	}
 	return ins
