@@ -10,7 +10,7 @@ type Address struct {
 	port string
 }
 
-func parseAddress(addrString string) *Address {
+func ParseAddress(addrString string) *Address {
 	splited := strings.Split(addrString, ":")
 	if 2 == len(splited) && splited[0] != "" && splited[1] != "" {
 		return &Address{
@@ -23,20 +23,6 @@ func parseAddress(addrString string) *Address {
 	}
 }
 
-func parseAddresses(addrStrings string) []*Address {
-	var addresses []*Address
-	splited := strings.Split(addrStrings, ",")
-	if len(splited) > 1 {
-		for _, addr := range splited {
-			addresses = append(addresses, parseAddress(addr))
-		}
-	} else {
-		log.Fatalf("More than 1 host for Peers is required.")
-	}
-
-	return addresses
-}
-
-func (addr *Address) generateUName() string {
+func (addr *Address) GenerateUName() string {
 	return addr.name + ":" + addr.port
 }

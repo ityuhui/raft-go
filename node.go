@@ -27,8 +27,7 @@ type Node struct {
 	votedFor        string
 
 	// log state machine
-	log       []*LogEntry
-	nextIndex []int64
+	log []*LogEntry
 }
 
 var ins *Node = nil
@@ -40,8 +39,8 @@ func NewNodeInstance(I string, peers string) *Node {
 		role:            NodeRole_Follower,
 		currentTerm:     0,
 		electionTimeout: 0,
-		myAddr:          parseAddress(I),
-		peers:           initPeers(peers),
+		myAddr:          ParseAddress(I),
+		peers:           InitPeers(peers),
 		votedFor:        "",
 	}
 	return ins
@@ -96,7 +95,7 @@ func (n *Node) Run() {
 
 func (n *Node) mainLoop() {
 	for {
-		fmt.Printf("I [%s] am a %s...\n", n.getMyAddress().generateUName(), n.role.ToString())
+		fmt.Printf("I [%s] am a %s...\n", n.getMyAddress().GenerateUName(), n.role.ToString())
 		time.Sleep(time.Second)
 
 		switch n.role {
@@ -115,7 +114,7 @@ func (n *Node) mainLoop() {
 
 func (n *Node) sendHeartBeatToFollowers() {
 	for _, peer := range n.peers {
-		n.sendHeartBeatToFollower(peer)
+		n.sendHeartBeatToFollower(peer.GetAddress())
 	}
 }
 
@@ -123,14 +122,14 @@ func (n *Node) gotoElectionPeriod() {
 	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.name, n.myAddr.port)
 	n.incCurrentTerm()
 	n.setRole(NodeRole_Candidate)
-	n.setVotedFor(n.getMyAddress().generateUName())
+	n.setVotedFor(n.getMyAddress().GenerateUName())
 	halfNumOfNodes := (float64(len(n.peers)) + 1.0) / 2.0
 	numOfAgree := 1.0 // vote to myself
 
 	agreeMap := make(map[string]bool)
 	for _, peer := range n.peers {
-		agree := n.sendVoteRequest(peer)
-		peerName := peer.generateUName()
+		agree := n.sendVoteRequest(peer.GetAddress())
+		peerName := peer.GetAddress().GenerateUName()
 		agreeMap[peerName] = agree
 	}
 
@@ -154,7 +153,7 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 	if in.GetTerm() > GetNodeInstance().getCurrentTerm() {
 		GetNodeInstance().resetElectionTimeout()
 		GetNodeInstance().setRole(NodeRole_Follower)
-		message = GetNodeInstance().getMyAddress().generateUName() + " received the heart beat."
+		message = GetNodeInstance().getMyAddress().GenerateUName() + " received the heart beat."
 	} else {
 		message = "Refuse the heart beat from " + in.GetName()
 	}
@@ -178,7 +177,7 @@ func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*ra
 }
 
 func (n *Node) sendVoteRequest(addr *Address) bool {
-	log.Printf("Begin to send vote request to: %v", addr.generateUName())
+	log.Printf("Begin to send vote request to: %v", addr.GenerateUName())
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(addr.name+":"+addr.port, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
@@ -190,7 +189,7 @@ func (n *Node) sendVoteRequest(addr *Address) bool {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.myAddr.generateUName(),
+	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.myAddr.GenerateUName(),
 		Term: n.getCurrentTerm()})
 	if err != nil {
 		log.Fatalf("could not request to vote: %v", err)
@@ -211,7 +210,7 @@ func (n *Node) sendHeartBeatToFollower(addr *Address) {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{Name: n.myAddr.generateUName(), Term: n.getCurrentTerm()})
+	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{Name: n.getMyAddress().GenerateUName(), Term: n.getCurrentTerm()})
 	if err != nil {
 		log.Fatalf("could not tell my heart beat: %v", err)
 	}
