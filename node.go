@@ -50,79 +50,83 @@ func GetNodeInstance() *Node {
 	return ins
 }
 
-func (n *Node) resetElectionTimeout() {
+func (n *Node) ResetElectionTimeout() {
 	lock.Lock()
 	n.electionTimeout = 0
 	lock.Unlock()
 }
 
-func (n *Node) incElectionTimeout() {
+func (n *Node) IncElectionTimeout() {
 	lock.Lock()
 	n.electionTimeout += INC_ELECTION_TIMEOUT
 	lock.Unlock()
 }
 
-func (n *Node) setRole(r NodePole) {
+func (n *Node) SetRole(r NodePole) {
 	lock.Lock()
 	n.role = r
 	lock.Unlock()
 }
 
-func (n *Node) incCurrentTerm() {
+func (n *Node) IncCurrentTerm() {
 	n.currentTerm++
 }
 
-func (n *Node) getCurrentTerm() int64 {
+func (n *Node) GetCurrentTerm() int64 {
 	return n.currentTerm
 }
 
-func (n *Node) getMyAddress() *Address {
+func (n *Node) SetCurrentTerm(term int64) {
+	n.currentTerm = term
+}
+
+func (n *Node) GetMyAddress() *Address {
 	return n.myAddr
 }
 
-func (n *Node) getVotedFor() string {
+func (n *Node) GetVotedFor() string {
 	return n.votedFor
 }
 
-func (n *Node) setVotedFor(votedFor string) {
+func (n *Node) SetVotedFor(votedFor string) {
 	n.votedFor = votedFor
 }
 
 func (n *Node) Run() {
 	go n.startRaftServer()
-	n.mainLoop()
+	n.MainLoop()
 }
 
-func (n *Node) mainLoop() {
+func (n *Node) MainLoop() {
 	for {
-		fmt.Printf("I [%s] am a %s...\n", n.getMyAddress().GenerateUName(), n.role.ToString())
+		fmt.Printf("I [%s] am a %s...\n", n.GetMyAddress().GenerateUName(), n.role.ToString())
 		time.Sleep(time.Second)
 
 		switch n.role {
 		case NodeRole_Leader:
-			n.sendHeartBeatToFollowers()
+			n.SendHeartBeatToFollowers()
 		case NodeRole_Follower:
 			if n.electionTimeout > ELECTION_TIMEOUT {
-				n.resetElectionTimeout()
-				n.gotoElectionPeriod()
+				n.ResetElectionTimeout()
+				n.GotoElectionPeriod()
 			} else {
-				n.incElectionTimeout()
+				n.IncElectionTimeout()
 			}
 		}
 	}
 }
 
-func (n *Node) sendHeartBeatToFollowers() {
+func (n *Node) SendHeartBeatToFollowers() {
 	for _, peer := range n.peers {
 		n.sendHeartBeatToFollower(peer.GetAddress())
 	}
 }
 
-func (n *Node) gotoElectionPeriod() {
+func (n *Node) GotoElectionPeriod() {
 	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.name, n.myAddr.port)
-	n.incCurrentTerm()
-	n.setRole(NodeRole_Candidate)
-	n.setVotedFor(n.getMyAddress().GenerateUName())
+	n.IncCurrentTerm()
+	n.SetRole(NodeRole_Candidate)
+	n.SetVotedFor(n.GetMyAddress().GenerateUName())
 	halfNumOfNodes := (float64(len(n.peers)) + 1.0) / 2.0
 	numOfAgree := 1.0 // vote to myself
 
@@ -139,7 +143,7 @@ func (n *Node) gotoElectionPeriod() {
 		}
 	}
 	if numOfAgree > halfNumOfNodes {
-		n.setRole(NodeRole_Leader)
+		n.SetRole(NodeRole_Leader)
 	}
 }
 
@@ -148,29 +152,36 @@ type server struct {
 }
 
 func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) (*raft_rpc.AppendReply, error) {
-	log.Printf("Received heart beat from leader: %v, term %v", in.GetName(), in.GetTerm())
+	log.Printf("I [%v] received heart beat from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetName(), in.GetTerm())
 	var message string
-	if in.GetTerm() > GetNodeInstance().getCurrentTerm() {
-		GetNodeInstance().resetElectionTimeout()
-		GetNodeInstance().setRole(NodeRole_Follower)
-		message = GetNodeInstance().getMyAddress().GenerateUName() + " received the heart beat."
+	if in.GetTerm() >= GetNodeInstance().GetCurrentTerm() {
+		GetNodeInstance().ResetElectionTimeout()
+		GetNodeInstance().SetRole(NodeRole_Follower)
+		message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] accepted the heart beat from leader " + in.GetName()
 	} else {
-		message = "Refuse the heart beat from " + in.GetName()
+		message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] have refused the heart beat from " + in.GetName()
 	}
+	log.Printf("I %v", message)
 	return &raft_rpc.AppendReply{Message: message}, nil
 }
 
 func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
-	log.Printf("Received vote request from candinate: %v", in.GetCandidateId())
+	log.Printf("I [%v] received vote request from candinate: %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetCandidateId())
 	candinateTerm := in.GetTerm()
 	candinateID := in.GetCandidateId()
 	agree := false
 
-	if candinateTerm <= GetNodeInstance().getCurrentTerm() {
-		agree = false
-	} else if GetNodeInstance().getVotedFor() == "" || candinateID == GetNodeInstance().getVotedFor() {
+	if candinateTerm > GetNodeInstance().GetCurrentTerm() &&
+		(GetNodeInstance().GetVotedFor() == "" ||
+			candinateID == GetNodeInstance().GetVotedFor()) {
+		GetNodeInstance().SetVotedFor(candinateID)
+		GetNodeInstance().SetCurrentTerm(candinateTerm)
+		GetNodeInstance().ResetElectionTimeout()
 		agree = true
-		GetNodeInstance().setVotedFor(candinateID)
+		log.Printf("I [%v] agreed the vote request from candinate: %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetCandidateId())
+	} else {
+		agree = false
+		log.Printf("I [%v] disagreed the vote request from candinate: %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetCandidateId())
 	}
 
 	return &raft_rpc.VoteReply{Term: candinateTerm, VoteGranted: agree}, nil
@@ -189,8 +200,8 @@ func (n *Node) sendVoteRequest(addr *Address) bool {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.myAddr.GenerateUName(),
-		Term: n.getCurrentTerm()})
+	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.GetMyAddress().GenerateUName(),
+		Term: n.GetCurrentTerm()})
 	if err != nil {
 		log.Fatalf("could not request to vote: %v", err)
 	}
@@ -210,7 +221,7 @@ func (n *Node) sendHeartBeatToFollower(addr *Address) {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{Name: n.getMyAddress().GenerateUName(), Term: n.getCurrentTerm()})
+	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{Name: n.GetMyAddress().GenerateUName(), Term: n.GetCurrentTerm()})
 	if err != nil {
 		log.Fatalf("could not tell my heart beat: %v", err)
 	}
