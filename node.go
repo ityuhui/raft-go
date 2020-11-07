@@ -153,10 +153,12 @@ type server struct {
 
 func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) (*raft_rpc.AppendReply, error) {
 	log.Printf("I [%v] received heart beat from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetName(), in.GetTerm())
+	candinateTerm := in.GetTerm()
 	var message string
-	if in.GetTerm() >= GetNodeInstance().GetCurrentTerm() {
+	if candinateTerm >= GetNodeInstance().GetCurrentTerm() {
 		GetNodeInstance().ResetElectionTimeout()
 		GetNodeInstance().SetRole(NodeRole_Follower)
+		GetNodeInstance().SetCurrentTerm(candinateTerm)
 		message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] accepted the heart beat from leader " + in.GetName()
 	} else {
 		message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] have refused the heart beat from " + in.GetName()

@@ -1,5 +1,6 @@
 # Binaries for programs and plugins
 raft-go
+__debug_bin
 *.exe
 *.exe~
 *.dll
