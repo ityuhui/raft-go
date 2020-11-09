@@ -152,18 +152,23 @@ type server struct {
 }
 
 func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) (*raft_rpc.AppendReply, error) {
-	log.Printf("I [%v] received heart beat from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetName(), in.GetTerm())
-	candinateTerm := in.GetTerm()
 	var message string
-	if candinateTerm >= GetNodeInstance().GetCurrentTerm() {
-		GetNodeInstance().ResetElectionTimeout()
-		GetNodeInstance().SetRole(NodeRole_Follower)
-		GetNodeInstance().SetCurrentTerm(candinateTerm)
-		message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] accepted the heart beat from leader " + in.GetName()
+	if in.GetIsHeartBeat() == true {
+		log.Printf("I [%v] received heart beat from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetName(), in.GetTerm())
+		candinateTerm := in.GetTerm()
+
+		if candinateTerm >= GetNodeInstance().GetCurrentTerm() {
+			GetNodeInstance().ResetElectionTimeout()
+			GetNodeInstance().SetRole(NodeRole_Follower)
+			GetNodeInstance().SetCurrentTerm(candinateTerm)
+			message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] accepted the heart beat from leader " + in.GetName()
+		} else {
+			message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] have refused the heart beat from " + in.GetName()
+		}
+		log.Printf("I %v", message)
 	} else {
-		message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] have refused the heart beat from " + in.GetName()
+		log.Printf("I [%v] am required to append log entry from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetName(), in.GetTerm())
 	}
-	log.Printf("I %v", message)
 	return &raft_rpc.AppendReply{Message: message}, nil
 }
 
