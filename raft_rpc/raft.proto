@@ -9,13 +9,13 @@ service RaftService {
     rpc RequestVote (VoteRequest) returns (VoteReply) {}
 }
 
-
 message AppendRequest {
-    string name = 1;
+    string leaderId = 1;
     int64 term = 2;
-    bool isHeartBeat = 3;
-    int64 log_term = 4;
-    int64 long_nextIndex = 5;
+    int64 prevLogIndex = 3;
+    int64 prevLogTerm = 4;
+    repeated message entries = 5;
+    int64 leaderCommit = 6
 }
 
 
