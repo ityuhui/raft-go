@@ -28,6 +28,10 @@ type Node struct {
 
 	// log state machine
 	log []*LogEntry
+
+	// log commit
+	commitIndex int64
+	lastApplied int64
 }
 
 var ins *Node = nil
@@ -156,7 +160,6 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 	if in.GetLogEntries() == nil {
 		log.Printf("I [%v] received heart beat from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetLeaderId(), in.GetTerm())
 		candinateTerm := in.GetTerm()
-
 		if candinateTerm >= GetNodeInstance().GetCurrentTerm() {
 			GetNodeInstance().ResetElectionTimeout()
 			GetNodeInstance().SetRole(NodeRole_Follower)

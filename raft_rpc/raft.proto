@@ -24,13 +24,17 @@ message AppendRequest {
 
 
 message AppendReply {
-    string message = 1;
+    int64 term = 1;
+    bool success = 2;
+    string message = 3;
 }
 
 
 message VoteRequest {
     int64  term = 1;
     string candidateId = 2;
+    int64 lastLogIndex = 3;
+    int64 lastLogTerm = 4;
 }
 
 
