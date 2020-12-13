@@ -1,5 +1,5 @@
 # raft-go
-My implementation of raft by golang
+An implementation of raft
 
 
 ## Generate gprc code
@@ -22,7 +22,7 @@ cd raft-client
 go build
 ```
 
-### Test
+### Usage
 
 #### Start raft-daemon
 ```
@@ -37,5 +37,6 @@ raft-daemon.exe --I=localhost:5052 --Peers=localhost:5050,localhost:5051
 
 ```
 raft-client.exe --server localhost:5050 --set a=10
+
 raft-client.exe --server localhost:5050 --get a
 ```
