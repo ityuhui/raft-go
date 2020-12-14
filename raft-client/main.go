@@ -9,14 +9,16 @@ import (
 var (
 	help bool
 
-	I     string
-	peers string
+	header string
+	set    string
+	get    string
 )
 
 func init() {
 	flag.BoolVar(&help, "help", false, "Show the usage")
-	flag.StringVar(&I, "I", "", "My name:port")
-	flag.StringVar(&peers, "Peers", "", "The name:port of my peers")
+	flag.StringVar(&header, "header", "", "header name:port")
+	flag.StringVar(&set, "set", "", "key=value")
+	flag.StringVar(&get, "get", "", "key")
 
 	flag.Usage = usage
 }
@@ -24,7 +26,8 @@ func init() {
 func usage() {
 	fmt.Fprintf(os.Stderr, `
 Usage:
-raft-go --I=myip:port --Peers=host2:port,host3:port
+raft-client --header=ip:port --set key=value
+raft-client --header=ip:port --get key
 `)
 	flag.PrintDefaults()
 }
@@ -32,7 +35,7 @@ raft-go --I=myip:port --Peers=host2:port,host3:port
 func main() {
 
 	flag.Parse()
-	if help || I == "" || peers == "" {
+	if help || header == "" || (get == "" && set == "") {
 		flag.Usage()
 		return
 	}

@@ -36,7 +36,7 @@ raft-daemon.exe --I=localhost:5052 --Peers=localhost:5050,localhost:5051
 #### Use raft-client
 
 ```
-raft-client.exe --server localhost:5050 --set a=10
+raft-client.exe --header=localhost:5050 --set a=10
 
-raft-client.exe --server localhost:5050 --get a
+raft-client.exe --header=localhost:5050 --get a
 ```

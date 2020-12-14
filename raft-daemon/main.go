@@ -9,7 +9,7 @@ import (
 var (
 	help bool
 
-	I   string
+	I     string
 	peers string
 )
 
@@ -24,7 +24,7 @@ func init() {
 func usage() {
 	fmt.Fprintf(os.Stderr, `
 Usage:
-raft-go --I=myip:port --Peers=host2:port,host3:port
+raft-daemon --I=myip:port --Peers=host2:port,host3:port
 `)
 	flag.PrintDefaults()
 }
