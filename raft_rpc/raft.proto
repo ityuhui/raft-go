@@ -7,6 +7,8 @@ service RaftService {
     // define the interface and data type
     rpc AppendEntries (AppendRequest) returns (AppendReply) {}
     rpc RequestVote (VoteRequest) returns (VoteReply) {}
+    rpc GetValue (GetValueRequest) returns (GetValueReply) {}
+    rpc SetValue (SetValueRequest) returns (SetValueReply) {}
 }
 
 message LogEntries {
@@ -22,13 +24,11 @@ message AppendRequest {
     int64 leaderCommit = 6;
 }
 
-
 message AppendReply {
     int64 term = 1;
     bool success = 2;
     string message = 3;
 }
-
 
 message VoteRequest {
     int64  term = 1;
@@ -37,9 +37,24 @@ message VoteRequest {
     int64 lastLogTerm = 4;
 }
 
-
 message VoteReply {
     int64 term = 1;
     bool  voteGranted = 2;
 }
 
+message GetValueRequest {
+    string key = 1;
+}
+
+message GetValueReply {
+    bool success = 1;
+    int64 value = 2;
+}
+
+message SetValueRequest {
+    string keyValue = 1;
+}
+
+message SetValueReply {
+    bool success = 1;
+}
