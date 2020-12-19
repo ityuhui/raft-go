@@ -128,7 +128,7 @@ func (n *Node) SendHeartBeatToFollowers() {
 }
 
 func (n *Node) GotoElectionPeriod() {
-	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.name, n.myAddr.port)
+	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.Name, n.myAddr.Port)
 	n.IncCurrentTerm()
 	n.SetRole(NodeRole_Candidate)
 	n.SetVotedFor(n.GetMyAddress().GenerateUName())
@@ -205,7 +205,7 @@ func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*ra
 func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	log.Printf("Begin to send vote request to: %v", addr.GenerateUName())
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(addr.name+":"+addr.port, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(addr.Name+":"+addr.Port, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
@@ -224,9 +224,9 @@ func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	return r.GetVoteGranted()
 }
 
-func (n *Node) sendHeartBeatToFollower(addr *Address) {
+func (n *Node) sendHeartBeatToFollower(addr *common.Address) {
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(addr.name+":"+addr.port, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(addr.Name+":"+addr.Port, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
@@ -244,7 +244,7 @@ func (n *Node) sendHeartBeatToFollower(addr *Address) {
 }
 
 func (n *Node) startRaftServer() {
-	lis, err := net.Listen("tcp", ":"+n.myAddr.port)
+	lis, err := net.Listen("tcp", ":"+n.myAddr.Port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

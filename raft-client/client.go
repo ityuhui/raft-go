@@ -1,15 +1,18 @@
 package main
 
 import (
+	"context"
+	"log"
 	"raft-go/common"
-	"fmt"
-	"os"
+	"raft-go/raft_rpc"
+	"time"
+
+	"google.golang.org/grpc"
 )
 
 type Client struct {
-	headerAddr *Address
-	set string
-	get string
+	headerAddr *common.Address
+	command    *Command
 }
 
 var ins *Client = nil
@@ -17,27 +20,20 @@ var ins *Client = nil
 func NewClientInstance(header string, set string, get string) *Client {
 
 	ins = &Client{
-		headerAddr:          ParseAddress(header),
-		set : set,
-		get : get,
+		headerAddr: common.ParseAddress(header),
+		command:    ParseCommand(set, get),
 	}
 	return ins
 }
 
 func (c *Client) Run() {
-	if c.get != "" {
-		c.Get(get)
-	} else if c.set != "" {
-		c.Set(set)
-	} else {
-		log.Printf("No command to execute.")
-	}
+	c.executeCommand()
 }
 
-func (c *Client) Set() bool {
-	log.Printf("Begin to send vote request to: %v", addr.GenerateUName())
+func (client *Client) executeCommand() bool {
+	log.Printf("Begin to execute the command: %v", client.command.ToString())
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(addr.name+":"+addr.port, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(client.headerAddr.Name+":"+client.headerAddr.Port, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
@@ -47,11 +43,13 @@ func (c *Client) Set() bool {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.GetMyAddress().GenerateUName(),
-		Term: n.GetCurrentTerm()})
+	r, err := c.ExecuteCommand(ctx, &raft_rpc.ExecuteCommandRequest{
+		Mode: client.command.Mode,
+		Text: client.command.Text,
+	})
 	if err != nil {
-		log.Fatalf("could not request to vote: %v", err)
+		log.Fatalf("could not send command to raft deamon: %v", err)
 	}
-	log.Printf("Get voteGranted: %v", r.GetVoteGranted())
-	return r.GetVoteGranted()
+	log.Printf("Get setting result: %v", r.GetSuccess())
+	return r.GetSuccess()
 }

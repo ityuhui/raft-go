@@ -20,8 +20,7 @@ type RaftServiceClient interface {
 	// define the interface and data type
 	AppendEntries(ctx context.Context, in *AppendRequest, opts ...grpc.CallOption) (*AppendReply, error)
 	RequestVote(ctx context.Context, in *VoteRequest, opts ...grpc.CallOption) (*VoteReply, error)
-	GetValue(ctx context.Context, in *GetValueRequest, opts ...grpc.CallOption) (*GetValueReply, error)
-	SetValue(ctx context.Context, in *SetValueRequest, opts ...grpc.CallOption) (*SetValueReply, error)
+	ExecuteCommand(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (*ExecuteCommandReply, error)
 }
 
 type raftServiceClient struct {
@@ -50,18 +49,9 @@ func (c *raftServiceClient) RequestVote(ctx context.Context, in *VoteRequest, op
 	return out, nil
 }
 
-func (c *raftServiceClient) GetValue(ctx context.Context, in *GetValueRequest, opts ...grpc.CallOption) (*GetValueReply, error) {
-	out := new(GetValueReply)
-	err := c.cc.Invoke(ctx, "/raft_rpc.RaftService/GetValue", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *raftServiceClient) SetValue(ctx context.Context, in *SetValueRequest, opts ...grpc.CallOption) (*SetValueReply, error) {
-	out := new(SetValueReply)
-	err := c.cc.Invoke(ctx, "/raft_rpc.RaftService/SetValue", in, out, opts...)
+func (c *raftServiceClient) ExecuteCommand(ctx context.Context, in *ExecuteCommandRequest, opts ...grpc.CallOption) (*ExecuteCommandReply, error) {
+	out := new(ExecuteCommandReply)
+	err := c.cc.Invoke(ctx, "/raft_rpc.RaftService/ExecuteCommand", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -75,8 +65,7 @@ type RaftServiceServer interface {
 	// define the interface and data type
 	AppendEntries(context.Context, *AppendRequest) (*AppendReply, error)
 	RequestVote(context.Context, *VoteRequest) (*VoteReply, error)
-	GetValue(context.Context, *GetValueRequest) (*GetValueReply, error)
-	SetValue(context.Context, *SetValueRequest) (*SetValueReply, error)
+	ExecuteCommand(context.Context, *ExecuteCommandRequest) (*ExecuteCommandReply, error)
 	mustEmbedUnimplementedRaftServiceServer()
 }
 
@@ -90,11 +79,8 @@ func (*UnimplementedRaftServiceServer) AppendEntries(context.Context, *AppendReq
 func (*UnimplementedRaftServiceServer) RequestVote(context.Context, *VoteRequest) (*VoteReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestVote not implemented")
 }
-func (*UnimplementedRaftServiceServer) GetValue(context.Context, *GetValueRequest) (*GetValueReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetValue not implemented")
-}
-func (*UnimplementedRaftServiceServer) SetValue(context.Context, *SetValueRequest) (*SetValueReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetValue not implemented")
+func (*UnimplementedRaftServiceServer) ExecuteCommand(context.Context, *ExecuteCommandRequest) (*ExecuteCommandReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ExecuteCommand not implemented")
 }
 func (*UnimplementedRaftServiceServer) mustEmbedUnimplementedRaftServiceServer() {}
 
@@ -138,38 +124,20 @@ func _RaftService_RequestVote_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RaftService_GetValue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetValueRequest)
+func _RaftService_ExecuteCommand_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExecuteCommandRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RaftServiceServer).GetValue(ctx, in)
+		return srv.(RaftServiceServer).ExecuteCommand(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/raft_rpc.RaftService/GetValue",
+		FullMethod: "/raft_rpc.RaftService/ExecuteCommand",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServiceServer).GetValue(ctx, req.(*GetValueRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _RaftService_SetValue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetValueRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(RaftServiceServer).SetValue(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/raft_rpc.RaftService/SetValue",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RaftServiceServer).SetValue(ctx, req.(*SetValueRequest))
+		return srv.(RaftServiceServer).ExecuteCommand(ctx, req.(*ExecuteCommandRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -187,12 +155,8 @@ var _RaftService_serviceDesc = grpc.ServiceDesc{
 			Handler:    _RaftService_RequestVote_Handler,
 		},
 		{
-			MethodName: "GetValue",
-			Handler:    _RaftService_GetValue_Handler,
-		},
-		{
-			MethodName: "SetValue",
-			Handler:    _RaftService_SetValue_Handler,
+			MethodName: "ExecuteCommand",
+			Handler:    _RaftService_ExecuteCommand_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
