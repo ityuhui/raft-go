@@ -2,11 +2,12 @@ package main
 
 import (
 	"log"
+	"raft-go/common"
 	"strings"
 )
 
 type Peer struct {
-	address    *Address
+	address    *common.Address
 	nextIndex  int64
 	matchIndex int64
 }
@@ -17,7 +18,7 @@ func InitPeers(addrStrings string) []*Peer {
 	if len(splited) > 1 {
 		for _, addr := range splited {
 			peer := &Peer{
-				address:    ParseAddress(addr),
+				address:    common.ParseAddress(addr),
 				nextIndex:  0,
 				matchIndex: 0,
 			}
@@ -30,7 +31,7 @@ func InitPeers(addrStrings string) []*Peer {
 	return peers
 }
 
-func (p *Peer) GetAddress() *Address {
+func (p *Peer) GetAddress() *common.Address {
 	return p.address
 }
 

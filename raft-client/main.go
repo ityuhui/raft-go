@@ -33,18 +33,12 @@ raft-client --header=ip:port --get key
 }
 
 func main() {
-
 	flag.Parse()
 	if help || header == "" || (get == "" && set == "") || (get != "" && set != "") {
 		flag.Usage()
 		return
 	}
 
-	c := NewClientInstance()
-
-	if get != "" {
-		c.Get(get)
-	} else if set != "" {
-		c.Set(set)
-	}
+	c := NewClientInstance(header, get, set)
+	c.Run()
 }

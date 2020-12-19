@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"raft-go/common"
 	"raft-go/raft_rpc"
 	"sync"
 	"time"
@@ -22,7 +23,7 @@ type Node struct {
 	role            NodePole
 	currentTerm     int64
 	electionTimeout int
-	myAddr          *Address
+	myAddr          *common.Address
 	peers           []*Peer
 	votedFor        string
 
@@ -43,7 +44,7 @@ func NewNodeInstance(I string, peers string) *Node {
 		role:            NodeRole_Follower,
 		currentTerm:     0,
 		electionTimeout: 0,
-		myAddr:          ParseAddress(I),
+		myAddr:          common.ParseAddress(I),
 		peers:           InitPeers(peers),
 		votedFor:        "",
 	}
@@ -84,7 +85,7 @@ func (n *Node) SetCurrentTerm(term int64) {
 	n.currentTerm = term
 }
 
-func (n *Node) GetMyAddress() *Address {
+func (n *Node) GetMyAddress() *common.Address {
 	return n.myAddr
 }
 
@@ -201,7 +202,7 @@ func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*ra
 	return &raft_rpc.VoteReply{Term: candinateTerm, VoteGranted: agree}, nil
 }
 
-func (n *Node) sendVoteRequest(addr *Address) bool {
+func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	log.Printf("Begin to send vote request to: %v", addr.GenerateUName())
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(addr.name+":"+addr.port, grpc.WithInsecure(), grpc.WithBlock())
