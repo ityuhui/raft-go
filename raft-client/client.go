@@ -30,7 +30,7 @@ func (c *Client) Run() {
 	c.executeCommand()
 }
 
-func (client *Client) executeCommand() bool {
+func (client *Client) executeCommand() (bool, int64) {
 	log.Printf("Begin to execute the command: %v", client.command.ToString())
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(client.headerAddr.Name+":"+client.headerAddr.Port, grpc.WithInsecure(), grpc.WithBlock())
@@ -44,12 +44,12 @@ func (client *Client) executeCommand() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	r, err := c.ExecuteCommand(ctx, &raft_rpc.ExecuteCommandRequest{
-		Mode: client.command.Mode,
+		Mode: client.command.Mode.ToString(),
 		Text: client.command.Text,
 	})
 	if err != nil {
-		log.Fatalf("could not send command to raft deamon: %v", err)
+		log.Fatalf("The raft deamon cannot execute the command from client: %v", err)
 	}
-	log.Printf("Get setting result: %v", r.GetSuccess())
-	return r.GetSuccess()
+	log.Printf("Execute command result: %v", r.GetSuccess())
+	return r.GetSuccess(), r.GetValue()
 }
