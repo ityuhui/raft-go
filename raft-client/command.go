@@ -1,20 +1,22 @@
 package main
 
+import "raft-go/common"
+
 type Command struct {
-	Mode CommandMode
+	Mode common.CommandMode
 	Text string
 }
 
 func ParseCommand(set string, get string) *Command {
 	cmd := &Command{
-		Mode: COMMANDMODE_UNKNOWN,
+		Mode: common.COMMANDMODE_UNKNOWN,
 		Text: "",
 	}
 	if get != "" {
-		cmd.Mode = COMMANDMODE_GET
+		cmd.Mode = common.COMMANDMODE_GET
 		cmd.Text = get
 	} else if set != "" {
-		cmd.Mode = COMMANDMODE_SET
+		cmd.Mode = common.COMMANDMODE_SET
 		cmd.Text = set
 	}
 	return cmd

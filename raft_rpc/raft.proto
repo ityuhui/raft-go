@@ -49,4 +49,5 @@ message ExecuteCommandRequest {
 message ExecuteCommandReply {
     bool success = 1;
     int64 value = 2;
+    string message = 3;
 }

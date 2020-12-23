@@ -202,6 +202,25 @@ func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*ra
 	return &raft_rpc.VoteReply{Term: candinateTerm, VoteGranted: agree}, nil
 }
 
+func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommandRequest) (*raft_rpc.ExecuteCommandReply, error) {
+	log.Printf("I [%v] am requested to execute command <%v> from client.", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetMode()+in.GetText())
+	rc := false
+	var val int64 = 0
+	message := ""
+	if in.GetMode() == common.COMMANDMODE_GET.ToString() {
+
+	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
+
+	} else {
+		message = "The command is unknown."
+	}
+	return &raft_rpc.ExecuteCommandReply{
+		Success: rc,
+		Value:   val,
+		Message: message,
+	}, nil
+}
+
 func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	log.Printf("Begin to send vote request to: %v", addr.GenerateUName())
 	// Set up a connection to the server.
