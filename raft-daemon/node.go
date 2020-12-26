@@ -33,44 +33,48 @@ type Node struct {
 	// log commit
 	commitIndex int64
 	lastApplied int64
+
+	// state machine
+	stateMachine *StateMachine
 }
 
-var ins *Node = nil
-var lock sync.Mutex
+var nodeInstance *Node = nil
+var nodeLock sync.Mutex
 
 func NewNodeInstance(I string, peers string) *Node {
 
-	ins = &Node{
+	nodeInstance = &Node{
 		role:            NodeRole_Follower,
 		currentTerm:     0,
 		electionTimeout: 0,
 		myAddr:          common.ParseAddress(I),
 		peers:           InitPeers(peers),
 		votedFor:        "",
+		stateMachine:    NewStateMachineInstance(),
 	}
-	return ins
+	return nodeInstance
 }
 
 func GetNodeInstance() *Node {
-	return ins
+	return nodeInstance
 }
 
 func (n *Node) ResetElectionTimeout() {
-	lock.Lock()
+	nodeLock.Lock()
 	n.electionTimeout = 0
-	lock.Unlock()
+	nodeLock.Unlock()
 }
 
 func (n *Node) IncElectionTimeout() {
-	lock.Lock()
+	nodeLock.Lock()
 	n.electionTimeout += INC_ELECTION_TIMEOUT
-	lock.Unlock()
+	nodeLock.Unlock()
 }
 
 func (n *Node) SetRole(r NodePole) {
-	lock.Lock()
+	nodeLock.Lock()
 	n.role = r
-	lock.Unlock()
+	nodeLock.Unlock()
 }
 
 func (n *Node) IncCurrentTerm() {
@@ -204,19 +208,22 @@ func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*ra
 
 func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommandRequest) (*raft_rpc.ExecuteCommandReply, error) {
 	log.Printf("I [%v] am requested to execute command <%v> from client.", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetMode()+in.GetText())
-	rc := false
-	var val int64 = 0
+	success := false
+	var value int64 = 0
 	message := ""
 	if in.GetMode() == common.COMMANDMODE_GET.ToString() {
-
+		value, rc := GetStateMachineInstance().Get(in.GetText())
+		if rc == nil {
+			success = true
+		}
 	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
 
 	} else {
 		message = "The command is unknown."
 	}
 	return &raft_rpc.ExecuteCommandReply{
-		Success: rc,
-		Value:   val,
+		Success: success,
+		Value:   value,
 		Message: message,
 	}, nil
 }
