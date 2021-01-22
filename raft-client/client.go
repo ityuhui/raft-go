@@ -17,11 +17,11 @@ type Client struct {
 
 var ins *Client = nil
 
-func NewClientInstance(header string, set string, get string) *Client {
+func NewClientInstance(header string, get string, set string) *Client {
 
 	ins = &Client{
 		headerAddr: common.ParseAddress(header),
-		command:    ParseCommand(set, get),
+		command:    ParseCommand(get, set),
 	}
 	return ins
 }

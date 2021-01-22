@@ -7,7 +7,7 @@ type Command struct {
 	Text string
 }
 
-func ParseCommand(set string, get string) *Command {
+func ParseCommand(get string, set string) *Command {
 	cmd := &Command{
 		Mode: common.COMMANDMODE_UNKNOWN,
 		Text: "",
