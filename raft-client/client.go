@@ -27,10 +27,13 @@ func NewClientInstance(header string, get string, set string) *Client {
 }
 
 func (c *Client) Run() {
-	c.executeCommand()
+	ret, val, msg := c.executeCommand()
+	log.Printf("Execute command result: %v", ret)
+	log.Printf("Execute command value: %v", val)
+	log.Printf("Execute command message: %v", msg)
 }
 
-func (client *Client) executeCommand() (bool, int64) {
+func (client *Client) executeCommand() (bool, int64, string) {
 	log.Printf("Begin to execute the command: %v", client.command.ToString())
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(client.headerAddr.Name+":"+client.headerAddr.Port, grpc.WithInsecure(), grpc.WithBlock())
@@ -50,6 +53,5 @@ func (client *Client) executeCommand() (bool, int64) {
 	if err != nil {
 		log.Fatalf("The raft deamon cannot execute the command from client: %v", err)
 	}
-	log.Printf("Execute command result: %v", r.GetSuccess())
-	return r.GetSuccess(), r.GetValue()
+	return r.GetSuccess(), r.GetValue(), r.GetMessage()
 }

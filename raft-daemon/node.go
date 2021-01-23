@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -210,7 +211,7 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 	log.Printf("I [%v] am requested to execute command <%v> from client.", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetMode()+in.GetText())
 	success := false
 	var value int64 = 0
-	var rc error
+	var rc error = nil
 	message := ""
 	if in.GetMode() == common.COMMANDMODE_GET.ToString() {
 		value, rc = GetStateMachineInstance().Get(in.GetText())
@@ -221,12 +222,13 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 
 	} else {
 		message = "The command is unknown."
+		rc = errors.New(message)
 	}
 	return &raft_rpc.ExecuteCommandReply{
 		Success: success,
 		Value:   value,
 		Message: message,
-	}, nil
+	}, rc
 }
 
 func (n *Node) sendVoteRequest(addr *common.Address) bool {
