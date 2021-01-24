@@ -28,10 +28,9 @@ type Node struct {
 	peers           []*Peer
 	votedFor        string
 
-	// log state machine
-	log []*LogEntry
-
-	// log commit
+	// node log
+	nodeLog []*LogEntry
+	// counter for node log
 	commitIndex int64
 	lastApplied int64
 
@@ -100,6 +99,14 @@ func (n *Node) GetVotedFor() string {
 
 func (n *Node) SetVotedFor(votedFor string) {
 	n.votedFor = votedFor
+}
+
+func (n *Node) GetLastApplied() int64 {
+	return n.lastApplied
+}
+
+func (n *Node) GetCommitIndex() int64 {
+	return n.commitIndex
 }
 
 func (n *Node) Run() {
@@ -217,9 +224,14 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 		value, rc = GetStateMachineInstance().Get(in.GetText())
 		if rc == nil {
 			success = true
+			message = "The command is executed."
 		}
 	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
-
+		//addToNodeLog(in.GetText())
+		if GetNodeInstance().GetLastApplied() == GetNodeInstance().GetCommitIndex() {
+			success = true
+			message = "The command is executed."
+		}
 	} else {
 		message = "The command is unknown."
 		rc = errors.New(message)
