@@ -164,6 +164,18 @@ func (n *Node) GotoElectionPeriod() {
 	}
 }
 
+func (n *Node) addToNodeLog(log string) {
+	entry := &LogEntry{
+		term: n.GetCurrentTerm(),
+		text: log,
+	}
+	n.nodeLog = append(n.nodeLog, entry)
+}
+
+func (n *Node) applyNodeLog() {
+
+}
+
 type server struct {
 	raft_rpc.UnimplementedRaftServiceServer
 }
@@ -227,7 +239,8 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 			message = "The command is executed."
 		}
 	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
-		//addToNodeLog(in.GetText())
+		GetNodeInstance().addToNodeLog(in.GetText())
+		GetNodeInstance().applyNodeLog()
 		if GetNodeInstance().GetLastApplied() == GetNodeInstance().GetCommitIndex() {
 			success = true
 			message = "The command is executed."
