@@ -50,6 +50,8 @@ func NewNodeInstance(I string, peers string) *Node {
 		myAddr:          common.ParseAddress(I),
 		peers:           InitPeers(peers),
 		votedFor:        "",
+		commitIndex:     0,
+		lastApplied:     0,
 		stateMachine:    NewStateMachineInstance(),
 	}
 	return nodeInstance
@@ -172,7 +174,15 @@ func (n *Node) addToNodeLog(log string) {
 	n.nodeLog = append(n.nodeLog, entry)
 }
 
-func (n *Node) applyNodeLog() {
+func (n *Node) applyNodeLogToStateMachine() {
+	for n.commitIndex > n.lastApplied {
+		n.lastApplied++
+		logentry := n.nodeLog[n.lastApplied]
+		executeStateMachineCommand(logentry.text)
+	}
+}
+
+func executeStateMachineCommand(cmd string) {
 
 }
 
