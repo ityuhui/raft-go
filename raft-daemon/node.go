@@ -8,6 +8,8 @@ import (
 	"net"
 	"raft-go/common"
 	"raft-go/raft_rpc"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -178,12 +180,15 @@ func (n *Node) applyNodeLogToStateMachine() {
 	for n.commitIndex > n.lastApplied {
 		n.lastApplied++
 		logentry := n.nodeLog[n.lastApplied]
-		executeStateMachineCommand(logentry.text)
+		n.executeStateMachineCommand(logentry.text)
 	}
 }
 
-func executeStateMachineCommand(cmd string) {
-
+func (n *Node) executeStateMachineCommand(cmd string) {
+	cmds := strings.Split(cmd, "=")
+	key := cmds[0]
+	value, _ := strconv.ParseInt(cmds[1], 10, 64)
+	n.stateMachine.Set(key, value)
 }
 
 type server struct {

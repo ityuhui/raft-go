@@ -25,7 +25,7 @@ func GetStateMachineInstance() *StateMachine {
 	return stateMachineInstance
 }
 
-func (sm *StateMachine) set(_key string, _newValue int64) {
+func (sm *StateMachine) Set(_key string, _newValue int64) {
 	_curVal, ok := sm.data[_key]
 	if ok {
 		sm.data[_key] = _newValue
