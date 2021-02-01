@@ -255,7 +255,7 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 		}
 	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
 		GetNodeInstance().addToNodeLog(in.GetText())
-		GetNodeInstance().applyNodeLog()
+		GetNodeInstance().applyNodeLogToStateMachine()
 		if GetNodeInstance().GetLastApplied() == GetNodeInstance().GetCommitIndex() {
 			success = true
 			message = "The command is executed."
