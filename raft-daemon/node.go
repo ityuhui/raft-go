@@ -139,7 +139,13 @@ func (n *Node) MainLoop() {
 
 func (n *Node) SendHeartBeatToFollowers() {
 	for _, peer := range n.peers {
-		n.sendHeartBeatToFollower(peer.GetAddress())
+		go n.sendHeartBeatOrAppendLogToFollower(peer.GetAddress())
+	}
+}
+
+func (n *Node) AppendLogToFollowers() {
+	for _, peer := range n.peers {
+		go n.sendHeartBeatOrAppendLogToFollower(peer.GetAddress())
 	}
 }
 
@@ -255,6 +261,7 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 		}
 	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
 		GetNodeInstance().addToNodeLog(in.GetText())
+		GetNodeInstance().AppendLogToFollowers()
 		GetNodeInstance().applyNodeLogToStateMachine()
 		if GetNodeInstance().GetLastApplied() == GetNodeInstance().GetCommitIndex() {
 			success = true
@@ -293,7 +300,7 @@ func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	return r.GetVoteGranted()
 }
 
-func (n *Node) sendHeartBeatToFollower(addr *common.Address) {
+func (n *Node) sendHeartBeatOrAppendLogToFollower(addr *common.Address) {
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(addr.Name+":"+addr.Port, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
