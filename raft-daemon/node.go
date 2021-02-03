@@ -139,13 +139,13 @@ func (n *Node) MainLoop() {
 
 func (n *Node) SendHeartBeatToFollowers() {
 	for _, peer := range n.peers {
-		go n.sendHeartBeatOrAppendLogToFollower(peer.GetAddress())
+		go n.sendHeartBeatOrAppendLogToFollower(peer)
 	}
 }
 
 func (n *Node) AppendLogToFollowers() {
 	for _, peer := range n.peers {
-		go n.sendHeartBeatOrAppendLogToFollower(peer.GetAddress())
+		go n.sendHeartBeatOrAppendLogToFollower(peer)
 	}
 }
 
@@ -300,8 +300,10 @@ func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	return r.GetVoteGranted()
 }
 
-func (n *Node) sendHeartBeatOrAppendLogToFollower(addr *common.Address) {
+func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer) {
 	// Set up a connection to the server.
+	addr := peer.GetAddress()
+
 	conn, err := grpc.Dial(addr.Name+":"+addr.Port, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
