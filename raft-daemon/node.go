@@ -204,7 +204,7 @@ type server struct {
 func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) (*raft_rpc.AppendReply, error) {
 	success := false
 	var message string
-	
+
 	candinateTerm := in.GetTerm()
 	if candinateTerm >= GetNodeInstance().GetCurrentTerm() {
 		if in.GetLogEntries() == nil {
@@ -214,6 +214,7 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 			log.Printf("I [%v] received heart beat from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetLeaderId(), in.GetTerm())
 		} else {
 			log.Printf("I [%v] am required to append log entry from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetLeaderId(), in.GetTerm())
+
 		}
 		success = true
 		message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] accepted the append from leader " + in.GetLeaderId()
@@ -316,8 +317,9 @@ func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{
-		LeaderId: n.GetMyAddress().GenerateUName(), 
-		Term: n.GetCurrentTerm()
+		LeaderId:     n.GetMyAddress().GenerateUName(),
+		Term:         n.GetCurrentTerm(),
+		LeaderCommit: n.GetCommitIndex(),
 	})
 	if err != nil {
 		log.Fatalf("could not tell my heart beat: %v", err)

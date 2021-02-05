@@ -42,3 +42,7 @@ func (p *Peer) GetNextIndex() int64 {
 func (p *Peer) GetMatchIndex() int64 {
 	return p.matchIndex
 }
+
+func (p *Peer) SetNextIndex(ni int64) {
+	p.nextIndex = ni
+}
