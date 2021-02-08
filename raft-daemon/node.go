@@ -59,6 +59,15 @@ func NewNodeInstance(I string, peers string) *Node {
 	return nodeInstance
 }
 
+func (n *Node) getNodeLogEntryTermByIndex(index int64) (int64, error) {
+	logEntry := n.GetNodeLog()[index]
+	if logEntry != nil {
+		return logEntry.term, nil
+	} else {
+		return 0, errors.New("The log entry does not exist.")
+	}
+}
+
 func GetNodeInstance() *Node {
 	return nodeInstance
 }
@@ -113,6 +122,10 @@ func (n *Node) GetCommitIndex() int64 {
 	return n.commitIndex
 }
 
+func (n *Node) GetNodeLog() []*LogEntry {
+	return n.nodeLog
+}
+
 func (n *Node) Run() {
 	go n.startRaftServer()
 	n.MainLoop()
@@ -139,13 +152,13 @@ func (n *Node) MainLoop() {
 
 func (n *Node) SendHeartBeatToFollowers() {
 	for _, peer := range n.peers {
-		go n.sendHeartBeatOrAppendLogToFollower(peer)
+		go n.sendHeartBeatOrAppendLogToFollower(peer, 0, 0)
 	}
 }
 
-func (n *Node) AppendLogToFollowers() {
+func (n *Node) AppendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
 	for _, peer := range n.peers {
-		go n.sendHeartBeatOrAppendLogToFollower(peer)
+		go n.sendHeartBeatOrAppendLogToFollower(peer, prevLogIndex, prevLogTerm)
 	}
 }
 
@@ -174,12 +187,13 @@ func (n *Node) GotoElectionPeriod() {
 	}
 }
 
-func (n *Node) addToNodeLog(log string) {
+func (n *Node) addToNodeLog(log string) int64 {
 	entry := &LogEntry{
 		term: n.GetCurrentTerm(),
 		text: log,
 	}
 	n.nodeLog = append(n.nodeLog, entry)
+	return int64(len(n.nodeLog))
 }
 
 func (n *Node) applyNodeLogToStateMachine() {
@@ -262,10 +276,14 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 			message = "The command is executed."
 		}
 	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
-		GetNodeInstance().addToNodeLog(in.GetText())
-		GetNodeInstance().AppendLogToFollowers()
-		GetNodeInstance().applyNodeLogToStateMachine()
-		if GetNodeInstance().GetLastApplied() == GetNodeInstance().GetCommitIndex() {
+		node := GetNodeInstance()
+		prevLogIndex := node.addToNodeLog(in.GetText())
+		prevLogTerm, rc := node.getNodeLogEntryTermByIndex(prevLogIndex)
+		if rc == nil {
+			node.AppendLogToFollowers(prevLogIndex, prevLogTerm)
+		}
+		node.applyNodeLogToStateMachine()
+		if node.GetLastApplied() == node.GetCommitIndex() {
 			success = true
 			message = "The command is executed."
 		}
@@ -302,7 +320,7 @@ func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	return r.GetVoteGranted()
 }
 
-func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer) {
+func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
 	// Set up a connection to the server.
 	addr := peer.GetAddress()
 
@@ -317,8 +335,11 @@ func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{
-		LeaderId:     n.GetMyAddress().GenerateUName(),
 		Term:         n.GetCurrentTerm(),
+		LeaderId:     n.GetMyAddress().GenerateUName(),
+		PrevLogIndex: prevLogIndex,
+		PrevLogTerm:  prevLogTerm,
+		LogEntries:   nil,
 		LeaderCommit: n.GetCommitIndex(),
 	})
 	if err != nil {
