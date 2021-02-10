@@ -320,6 +320,10 @@ func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	return r.GetVoteGranted()
 }
 
+func (n *Node) prepareNodeLogToAppend(peer *Peer) []*LogEntry {
+	return []
+}
+
 func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
 	// Set up a connection to the server.
 	addr := peer.GetAddress()
@@ -339,7 +343,7 @@ func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64
 		LeaderId:     n.GetMyAddress().GenerateUName(),
 		PrevLogIndex: prevLogIndex,
 		PrevLogTerm:  prevLogTerm,
-		LogEntries:   nil,
+		LogEntries:   n.prepareNodeLogToAppend(peer),
 		LeaderCommit: n.GetCommitIndex(),
 	})
 	if err != nil {
