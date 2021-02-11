@@ -68,6 +68,10 @@ func (n *Node) getNodeLogEntryTermByIndex(index int64) (int64, error) {
 	}
 }
 
+func (n *Node) getLastNodeLogIndex() int64 {
+	return int64(len(n.GetNodeLog()))
+}
+
 func GetNodeInstance() *Node {
 	return nodeInstance
 }
@@ -321,7 +325,12 @@ func (n *Node) sendVoteRequest(addr *common.Address) bool {
 }
 
 func (n *Node) prepareNodeLogToAppend(peer *Peer) []*LogEntry {
-	return []
+	myLastLogIndex := n.getLastNodeLogIndex()
+	peerNextIndex := peer.GetNextIndex()
+	if myLastLogIndex >= peerNextIndex {
+		return n.GetNodeLog()[peerNextIndex:]
+	}
+	return nil
 }
 
 func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
