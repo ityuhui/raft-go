@@ -10,8 +10,9 @@ service RaftService {
     rpc ExecuteCommand (ExecuteCommandRequest) returns (ExecuteCommandReply) {}
 }
 
-message LogEntries {
-    int64 term = 1; 
+message LogEntry {
+    int64 term = 1;
+    string text = 2;
 }
 
 message AppendRequest {
@@ -19,7 +20,7 @@ message AppendRequest {
     int64 term = 2;
     int64 prevLogIndex = 3;
     int64 prevLogTerm = 4;
-    repeated LogEntries logEntries = 5;
+    repeated LogEntry logEntries = 5;
     int64 leaderCommit = 6;
 }
 
