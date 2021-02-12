@@ -1,6 +1,6 @@
 package main
 
 type LogEntry struct {
-	term int64
-	text string
+	Term int64
+	Text string
 }

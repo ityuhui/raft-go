@@ -62,7 +62,7 @@ func NewNodeInstance(I string, peers string) *Node {
 func (n *Node) getNodeLogEntryTermByIndex(index int64) (int64, error) {
 	logEntry := n.GetNodeLog()[index]
 	if logEntry != nil {
-		return logEntry.term, nil
+		return logEntry.Term, nil
 	} else {
 		return 0, errors.New("The log entry does not exist.")
 	}
@@ -193,8 +193,8 @@ func (n *Node) GotoElectionPeriod() {
 
 func (n *Node) addToNodeLog(log string) int64 {
 	entry := &LogEntry{
-		term: n.GetCurrentTerm(),
-		text: log,
+		Term: n.GetCurrentTerm(),
+		Text: log,
 	}
 	n.nodeLog = append(n.nodeLog, entry)
 	return int64(len(n.nodeLog))
@@ -204,7 +204,7 @@ func (n *Node) applyNodeLogToStateMachine() {
 	for n.commitIndex > n.lastApplied {
 		n.lastApplied++
 		logentry := n.nodeLog[n.lastApplied]
-		n.executeStateMachineCommand(logentry.text)
+		n.executeStateMachineCommand(logentry.Text)
 	}
 }
 
@@ -324,11 +324,20 @@ func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	return r.GetVoteGranted()
 }
 
-func (n *Node) prepareNodeLogToAppend(peer *Peer) []*LogEntry {
+func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
 	myLastLogIndex := n.getLastNodeLogIndex()
 	peerNextIndex := peer.GetNextIndex()
 	if myLastLogIndex >= peerNextIndex {
-		return n.GetNodeLog()[peerNextIndex:]
+		toAppend := []*raft_rpc.LogEntry{}
+		var i int64
+		for i = 0; i < peerNextIndex; i++ {
+			logEntry := &raft_rpc.LogEntry{
+				Term: n.GetNodeLog()[i].Term,
+				Text: n.GetNodeLog()[i].Text,
+			}
+			toAppend = append(toAppend, logEntry)
+		}
+		return toAppend
 	}
 	return nil
 }
