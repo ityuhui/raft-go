@@ -223,21 +223,35 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 	success := false
 	var message string
 
-	candinateTerm := in.GetTerm()
-	if candinateTerm >= GetNodeInstance().GetCurrentTerm() {
+	leaderId := in.GetLeaderId()
+	leaderTerm := in.GetTerm()
+	myName := GetNodeInstance().GetMyAddress().GenerateUName()
+
+	if leaderTerm >= GetNodeInstance().GetCurrentTerm() {
 		if in.GetLogEntries() == nil {
+			log.Printf("I [%v] received heart beat from leader: %v, term %v", myName, leaderId, leaderTerm)
 			GetNodeInstance().ResetElectionTimeout()
 			GetNodeInstance().SetRole(NodeRole_Follower)
-			GetNodeInstance().SetCurrentTerm(candinateTerm)
-			log.Printf("I [%v] received heart beat from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetLeaderId(), in.GetTerm())
+			GetNodeInstance().SetCurrentTerm(leaderTerm)
+			success = true
+			message = "[" + myName + "] accepted the heart beat from leader " + leaderId
 		} else {
-			log.Printf("I [%v] am required to append log entry from leader: %v, term %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetLeaderId(), in.GetTerm())
+			log.Printf("I [%v] am required to append log entry from leader: %v, term %v", myName, leaderId, leaderTerm)
+			logEntryTerm, rc := GetNodeInstance().getNodeLogEntryTermByIndex(in.GetPrevLogIndex())
+			if rc != nil {
+				if logEntryTerm == in.GetPrevLogTerm() {
 
+				} else {
+					success = false
+					message = "[" + myName + "] accepted the append from leader " + leaderId
+				}
+			} else {
+				success = false
+				message = "[" + myName + "] accepted the append from leader " + leaderId
+			}
 		}
-		success = true
-		message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] accepted the append from leader " + in.GetLeaderId()
 	} else {
-		message = "[" + GetNodeInstance().GetMyAddress().GenerateUName() + "] have refused the append request from " + in.GetLeaderId()
+		message = "[" + myName + "] have refused the append request from " + leaderId
 		success = false
 	}
 	log.Printf("I %v", message)
