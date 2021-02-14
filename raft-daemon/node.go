@@ -222,6 +222,7 @@ type server struct {
 func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) (*raft_rpc.AppendReply, error) {
 	success := false
 	var message string
+	var err error = nil
 
 	leaderId := in.GetLeaderId()
 	leaderTerm := in.GetTerm()
@@ -237,26 +238,30 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 			message = "[" + myName + "] accepted the heart beat from leader " + leaderId
 		} else {
 			log.Printf("I [%v] am required to append log entry from leader: %v, term %v", myName, leaderId, leaderTerm)
-			logEntryTerm, rc := GetNodeInstance().getNodeLogEntryTermByIndex(in.GetPrevLogIndex())
+			logEntryIndex := in.GetPrevLogIndex()
+			logEntryTerm, rc := GetNodeInstance().getNodeLogEntryTermByIndex(logEntryIndex)
 			if rc != nil {
 				if logEntryTerm == in.GetPrevLogTerm() {
 
 				} else {
 					success = false
 					message = "[" + myName + "] accepted the append from leader " + leaderId
+					err = errors.New(message)
 				}
 			} else {
 				success = false
-				message = "[" + myName + "] accepted the append from leader " + leaderId
+				message = "[" + myName + "] does not have the log entry with index [" + fmt.Sprint(logEntryIndex) + "]."
+				err = errors.New(message)
 			}
 		}
 	} else {
 		message = "[" + myName + "] have refused the append request from " + leaderId
 		success = false
+		err = errors.New(message)
 	}
 	log.Printf("I %v", message)
 
-	return &raft_rpc.AppendReply{Term: GetNodeInstance().GetCurrentTerm(), Success: success, Message: message}, nil
+	return &raft_rpc.AppendReply{Term: GetNodeInstance().GetCurrentTerm(), Success: success, Message: message}, err
 }
 
 func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
