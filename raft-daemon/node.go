@@ -245,7 +245,7 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 
 				} else {
 					success = false
-					message = "[" + myName + "] accepted the append from leader " + leaderId
+					message = "[" + myName + "] has a log entry with the index [" + fmt.Sprint(logEntryIndex) + "], but its term is [" + fmt.Sprint(logEntryTerm) + "], not [" + fmt.Sprint(in.GetPrevLogTerm()) + "]"
 					err = errors.New(message)
 				}
 			} else {
