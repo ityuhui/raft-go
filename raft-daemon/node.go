@@ -126,6 +126,10 @@ func (n *Node) GetCommitIndex() int64 {
 	return n.commitIndex
 }
 
+func (n *Node) SetCommitIndex(index int64) {
+	n.commitIndex = index
+}
+
 func (n *Node) GetNodeLog() []*LogEntry {
 	return n.nodeLog
 }
@@ -215,6 +219,17 @@ func (n *Node) executeStateMachineCommand(cmd string) {
 	n.stateMachine.Set(key, value)
 }
 
+func (n *Node) UpdateMyCommitIndex(leaderCommit int64) {
+	if leaderCommit > n.GetCommitIndex() {
+		lastIndex := n.getLastNodeLogIndex()
+		if leaderCommit <= lastIndex {
+			n.SetCommitIndex(leaderCommit)
+		} else {
+			n.SetCommitIndex(lastIndex)
+		}
+	}
+}
+
 type server struct {
 	raft_rpc.UnimplementedRaftServiceServer
 }
@@ -226,10 +241,12 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 
 	leaderId := in.GetLeaderId()
 	leaderTerm := in.GetTerm()
+	leaderCommit := in.GetLeaderCommit()
 	myName := GetNodeInstance().GetMyAddress().GenerateUName()
 
 	if leaderTerm >= GetNodeInstance().GetCurrentTerm() {
-		if in.GetLogEntries() == nil {
+		logEntries := in.GetLogEntries()
+		if logEntries == nil {
 			log.Printf("I [%v] received heart beat from leader: %v, term %v", myName, leaderId, leaderTerm)
 			GetNodeInstance().ResetElectionTimeout()
 			GetNodeInstance().SetRole(NodeRole_Follower)
@@ -241,12 +258,23 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 			logEntryIndex := in.GetPrevLogIndex()
 			logEntryTerm, rc := GetNodeInstance().getNodeLogEntryTermByIndex(logEntryIndex)
 			if rc != nil {
-				if logEntryTerm == in.GetPrevLogTerm() {
-
-				} else {
+				if logEntryTerm != in.GetPrevLogTerm() {
+					message = "[" + myName + "] has a log entry with the index [" + fmt.Sprint(logEntryIndex) + "], but its term is [" + fmt.Sprint(logEntryTerm) + "], not [" + fmt.Sprint(in.GetPrevLogTerm()) + "] from append request."
+				}
+				err = GetNodeInstance().deleteLogEntryAndItsFollowerInNodeLog(logEntryIndex)
+				if err != nil {
 					success = false
-					message = "[" + myName + "] has a log entry with the index [" + fmt.Sprint(logEntryIndex) + "], but its term is [" + fmt.Sprint(logEntryTerm) + "], not [" + fmt.Sprint(in.GetPrevLogTerm()) + "]"
-					err = errors.New(message)
+					message = err.Error()
+				} else {
+					err = GetNodeInstance().appendEntryFromLeaderToMyNodeLog(logEntries)
+					if err != nil {
+						success = false
+						message = err.Error()
+					} else {
+						GetNodeInstance().UpdateMyCommitIndex(leaderCommit)
+						success = true
+						message = "[" + myName + "] have appended the log entries from " + leaderId + " successfully."
+					}
 				}
 			} else {
 				success = false
