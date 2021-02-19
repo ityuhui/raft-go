@@ -229,12 +229,99 @@ func (n *Node) deleteLogEntryAndItsFollowerInNodeLog(index int64) error {
 	return nil
 }
 
+func (n *Node) appendEntryFromLeaderToMyNodeLog(logEntries []*raft_rpc.LogEntry) error {
+	return nil
+}
+
+func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
+	myLastLogIndex := n.getLastNodeLogEntryIndex()
+	peerNextIndex := peer.GetNextIndex()
+	if myLastLogIndex >= peerNextIndex {
+		toAppend := []*raft_rpc.LogEntry{}
+		var i int64
+		for i = 0; i < peerNextIndex; i++ {
+			logEntry := &raft_rpc.LogEntry{
+				Term: n.GetNodeLog()[i].Term,
+				Text: n.GetNodeLog()[i].Text,
+			}
+			toAppend = append(toAppend, logEntry)
+		}
+		return toAppend
+	}
+	return nil
+}
+
+// append log
+func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
+	// Set up a connection to the server.
+	addr := peer.GetAddress()
+
+	conn, err := grpc.Dial(addr.Name+":"+addr.Port, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+	c := raft_rpc.NewRaftServiceClient(conn)
+
+	// Contact the server and print out its response.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{
+		Term:         n.GetCurrentTerm(),
+		LeaderId:     n.GetMyAddress().GenerateUName(),
+		PrevLogIndex: prevLogIndex,
+		PrevLogTerm:  prevLogTerm,
+		LogEntries:   n.prepareNodeLogToAppend(peer),
+		LeaderCommit: n.GetCommitIndex(),
+	})
+	if err != nil {
+		log.Fatalf("could not tell my heart beat: %v", err)
+	}
+	log.Printf("Telling: %s", r.GetMessage())
+}
+
 // state machine operations
 func (n *Node) executeStateMachineCommand(cmd string) {
 	cmds := strings.Split(cmd, "=")
 	key := cmds[0]
 	value, _ := strconv.ParseInt(cmds[1], 10, 64)
 	n.stateMachine.Set(key, value)
+}
+
+// vote
+func (n *Node) sendVoteRequest(addr *common.Address) bool {
+	log.Printf("Begin to send vote request to: %v", addr.GenerateUName())
+	// Set up a connection to the server.
+	conn, err := grpc.Dial(addr.Name+":"+addr.Port, grpc.WithInsecure(), grpc.WithBlock())
+	if err != nil {
+		log.Fatalf("did not connect: %v", err)
+	}
+	defer conn.Close()
+	c := raft_rpc.NewRaftServiceClient(conn)
+
+	// Contact the server and print out its response.
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.GetMyAddress().GenerateUName(),
+		Term: n.GetCurrentTerm()})
+	if err != nil {
+		log.Fatalf("could not request to vote: %v", err)
+	}
+	log.Printf("Get voteGranted: %v", r.GetVoteGranted())
+	return r.GetVoteGranted()
+}
+
+// raft server
+func (n *Node) startRaftServer() {
+	lis, err := net.Listen("tcp", ":"+n.myAddr.Port)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+	s := grpc.NewServer()
+	raft_rpc.RegisterRaftServiceServer(s, &server{})
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
+	}
 }
 
 type server struct {
@@ -354,84 +441,4 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 		Value:   value,
 		Message: message,
 	}, rc
-}
-
-func (n *Node) sendVoteRequest(addr *common.Address) bool {
-	log.Printf("Begin to send vote request to: %v", addr.GenerateUName())
-	// Set up a connection to the server.
-	conn, err := grpc.Dial(addr.Name+":"+addr.Port, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	c := raft_rpc.NewRaftServiceClient(conn)
-
-	// Contact the server and print out its response.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.GetMyAddress().GenerateUName(),
-		Term: n.GetCurrentTerm()})
-	if err != nil {
-		log.Fatalf("could not request to vote: %v", err)
-	}
-	log.Printf("Get voteGranted: %v", r.GetVoteGranted())
-	return r.GetVoteGranted()
-}
-
-func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
-	myLastLogIndex := n.getLastNodeLogEntryIndex()
-	peerNextIndex := peer.GetNextIndex()
-	if myLastLogIndex >= peerNextIndex {
-		toAppend := []*raft_rpc.LogEntry{}
-		var i int64
-		for i = 0; i < peerNextIndex; i++ {
-			logEntry := &raft_rpc.LogEntry{
-				Term: n.GetNodeLog()[i].Term,
-				Text: n.GetNodeLog()[i].Text,
-			}
-			toAppend = append(toAppend, logEntry)
-		}
-		return toAppend
-	}
-	return nil
-}
-
-func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
-	// Set up a connection to the server.
-	addr := peer.GetAddress()
-
-	conn, err := grpc.Dial(addr.Name+":"+addr.Port, grpc.WithInsecure(), grpc.WithBlock())
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	c := raft_rpc.NewRaftServiceClient(conn)
-
-	// Contact the server and print out its response.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{
-		Term:         n.GetCurrentTerm(),
-		LeaderId:     n.GetMyAddress().GenerateUName(),
-		PrevLogIndex: prevLogIndex,
-		PrevLogTerm:  prevLogTerm,
-		LogEntries:   n.prepareNodeLogToAppend(peer),
-		LeaderCommit: n.GetCommitIndex(),
-	})
-	if err != nil {
-		log.Fatalf("could not tell my heart beat: %v", err)
-	}
-	log.Printf("Telling: %s", r.GetMessage())
-}
-
-func (n *Node) startRaftServer() {
-	lis, err := net.Listen("tcp", ":"+n.myAddr.Port)
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
-	s := grpc.NewServer()
-	raft_rpc.RegisterRaftServiceServer(s, &server{})
-	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
-	}
 }
