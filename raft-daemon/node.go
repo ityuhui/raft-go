@@ -196,7 +196,12 @@ func (n *Node) getLastNodeLogEntryIndex() int64 {
 	return int64(len(n.GetNodeLog()))
 }
 
-func (n *Node) addToNodeLog(log string) int64 {
+func (n *Node) addToNodeLog(entry *LogEntry) int64 {
+	n.nodeLog = append(n.nodeLog, entry)
+	return int64(len(n.nodeLog))
+}
+
+func (n *Node) addCmdToNodeLog(log string) int64 {
 	entry := &LogEntry{
 		Term: n.GetCurrentTerm(),
 		Text: log,
@@ -229,8 +234,15 @@ func (n *Node) deleteLogEntryAndItsFollowerInNodeLog(index int64) error {
 	return nil
 }
 
-func (n *Node) appendEntryFromLeaderToMyNodeLog(logEntries []*raft_rpc.LogEntry) error {
-	return nil
+func (n *Node) appendEntryFromLeaderToMyNodeLog(logEntries []*raft_rpc.LogEntry) {
+	var i int
+	for i = 0; i < len(logEntries); i++ {
+		logEntry := &LogEntry{
+			Term: logEntries[i].Term,
+			Text: logEntries[i].Text,
+		}
+		n.addToNodeLog(logEntry)
+	}
 }
 
 func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
@@ -360,15 +372,10 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 					success = false
 					message = err.Error()
 				} else {
-					err = GetNodeInstance().appendEntryFromLeaderToMyNodeLog(logEntries)
-					if err != nil {
-						success = false
-						message = err.Error()
-					} else {
-						GetNodeInstance().UpdateMyCommitIndex(leaderCommit)
-						success = true
-						message = "[" + myName + "] have appended the log entries from " + leaderId + " successfully."
-					}
+					GetNodeInstance().appendEntryFromLeaderToMyNodeLog(logEntries)
+					GetNodeInstance().UpdateMyCommitIndex(leaderCommit)
+					success = true
+					message = "[" + myName + "] have appended the log entries from " + leaderId + " successfully."
 				}
 			} else {
 				success = false
@@ -422,7 +429,7 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 		}
 	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
 		node := GetNodeInstance()
-		prevLogIndex := node.addToNodeLog(in.GetText())
+		prevLogIndex := node.addCmdToNodeLog(in.GetText())
 		prevLogTerm, rc := node.getNodeLogEntryTermByIndex(prevLogIndex)
 		if rc == nil {
 			node.AppendLogToFollowers(prevLogIndex, prevLogTerm)
