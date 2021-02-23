@@ -183,6 +183,10 @@ func (n *Node) GotoElectionPeriod() {
 }
 
 // node log operations
+func (n *Node) getNodeLogLength() int64 {
+	return int64(len(n.GetNodeLog()))
+}
+
 func (n *Node) getNodeLogEntryTermByIndex(index int64) (int64, error) {
 	logEntry := n.GetNodeLog()[index]
 	if logEntry != nil {
@@ -193,12 +197,12 @@ func (n *Node) getNodeLogEntryTermByIndex(index int64) (int64, error) {
 }
 
 func (n *Node) getLastNodeLogEntryIndex() int64 {
-	return int64(len(n.GetNodeLog()))
+	return n.getNodeLogLength()
 }
 
 func (n *Node) addToNodeLog(entry *LogEntry) int64 {
 	n.nodeLog = append(n.nodeLog, entry)
-	return int64(len(n.nodeLog))
+	return n.getNodeLogLength()
 }
 
 func (n *Node) addCmdToNodeLog(log string) int64 {
@@ -230,7 +234,14 @@ func (n *Node) UpdateMyCommitIndex(leaderCommit int64) {
 }
 
 func (n *Node) deleteLogEntryAndItsFollowerInNodeLog(index int64) error {
-	n.GetNodeLog()
+	if index > int64(n.getNodeLogLength()) {
+		return errors.New("Cannot find the log entry with the index: " + string(index))
+	}
+	var i int64
+	nodeLog := n.GetNodeLog()
+	for i = index; i < n.getNodeLogLength(); i++ {
+		nodeLog[i] = nil
+	}
 	return nil
 }
 
