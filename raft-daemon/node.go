@@ -142,6 +142,8 @@ func (n *Node) MainLoop() {
 				n.IncElectionTimeout()
 			}
 		}
+
+		n.applyNodeLogToStateMachine()
 	}
 }
 
