@@ -134,6 +134,7 @@ func (n *Node) MainLoop() {
 		switch n.role {
 		case NodeRole_Leader:
 			n.SendHeartBeatToFollowers()
+			n.UpdateMyCommitIndexWhenIamLeader()
 		case NodeRole_Follower:
 			if n.electionTimeout > ELECTION_TIMEOUT {
 				n.ResetElectionTimeout()
@@ -217,14 +218,18 @@ func (n *Node) addCmdToNodeLog(log string) int64 {
 }
 
 func (n *Node) applyNodeLogToStateMachine() {
-	for n.commitIndex > n.lastApplied {
+	for n.GetCommitIndex() > n.lastApplied {
 		n.lastApplied++
 		logentry := n.nodeLog[n.lastApplied]
 		n.executeStateMachineCommand(logentry.Text)
 	}
 }
 
-func (n *Node) UpdateMyCommitIndex(leaderCommit int64) {
+func (n *Node) UpdateMyCommitIndexWhenIamLeader() {
+
+}
+
+func (n *Node) UpdateMyCommitIndexWhenIamFollower(leaderCommit int64) {
 	if leaderCommit > n.GetCommitIndex() {
 		lastIndex := n.getLastNodeLogEntryIndex()
 		if leaderCommit <= lastIndex {
@@ -386,7 +391,7 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 					message = err.Error()
 				} else {
 					GetNodeInstance().appendEntryFromLeaderToMyNodeLog(logEntries)
-					GetNodeInstance().UpdateMyCommitIndex(leaderCommit)
+					GetNodeInstance().UpdateMyCommitIndexWhenIamFollower(leaderCommit)
 					success = true
 					message = "[" + myName + "] have appended the log entries from " + leaderId + " successfully."
 				}
