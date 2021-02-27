@@ -134,7 +134,6 @@ func (n *Node) MainLoop() {
 		switch n.role {
 		case NodeRole_Leader:
 			n.SendHeartBeatToFollowers()
-			n.UpdateMyCommitIndexWhenIamLeader()
 		case NodeRole_Follower:
 			if n.electionTimeout > ELECTION_TIMEOUT {
 				n.ResetElectionTimeout()
@@ -144,7 +143,7 @@ func (n *Node) MainLoop() {
 			}
 		}
 
-		n.applyNodeLogToStateMachine()
+		n.ApplyNodeLogToStateMachine()
 	}
 }
 
@@ -152,6 +151,14 @@ func (n *Node) SendHeartBeatToFollowers() {
 	for _, peer := range n.peers {
 		go n.sendHeartBeatOrAppendLogToFollower(peer, 0, 0)
 	}
+}
+
+func (n *Node) appendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
+	var err error
+	for ; err != nil; err = n.sendHeartBeatOrAppendLogToFollower(peer, prevLogIndex, prevLogTerm) {
+		n.updateNextIndex(peer)
+	}
+	n.updatePeersIndex(peer)
 }
 
 func (n *Node) AppendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
@@ -217,7 +224,7 @@ func (n *Node) addCmdToNodeLog(log string) int64 {
 	return int64(len(n.nodeLog))
 }
 
-func (n *Node) applyNodeLogToStateMachine() {
+func (n *Node) ApplyNodeLogToStateMachine() {
 	for n.GetCommitIndex() > n.lastApplied {
 		n.lastApplied++
 		logentry := n.nodeLog[n.lastApplied]
@@ -242,7 +249,7 @@ func (n *Node) UpdateMyCommitIndexWhenIamFollower(leaderCommit int64) {
 
 func (n *Node) deleteLogEntryAndItsFollowerInNodeLog(index int64) error {
 	if index > int64(n.getNodeLogLength()) {
-		return errors.New("Cannot find the log entry with the index: " + string(index))
+		return errors.New("Cannot find the log entry with the index: " + strconv.FormatInt(index, 10))
 	}
 	var i int64
 	nodeLog := n.GetNodeLog()
@@ -282,7 +289,7 @@ func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
 }
 
 // append log
-func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
+func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) error {
 	// Set up a connection to the server.
 	addr := peer.GetAddress()
 
@@ -308,6 +315,7 @@ func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64
 		log.Fatalf("could not tell my heart beat: %v", err)
 	}
 	log.Printf("Telling: %s", r.GetMessage())
+	return nil
 }
 
 // state machine operations
@@ -452,7 +460,8 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 		if rc == nil {
 			node.AppendLogToFollowers(prevLogIndex, prevLogTerm)
 		}
-		node.applyNodeLogToStateMachine()
+		node.UpdateMyCommitIndexWhenIamLeader()
+		node.ApplyNodeLogToStateMachine()
 		if node.GetLastApplied() == node.GetCommitIndex() {
 			success = true
 			message = "The command is executed."
