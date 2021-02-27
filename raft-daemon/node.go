@@ -156,9 +156,9 @@ func (n *Node) SendHeartBeatToFollowers() {
 func (n *Node) appendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
 	var err error
 	for ; err != nil; err = n.sendHeartBeatOrAppendLogToFollower(peer, prevLogIndex, prevLogTerm) {
-		n.updateNextIndex(peer)
+		peer.DecreaseNextIndex()
 	}
-	n.updatePeersIndex(peer)
+	peer.UpdatePeerNextandMatchIndex()
 }
 
 func (n *Node) AppendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
