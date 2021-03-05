@@ -3,18 +3,18 @@ package main
 type NodePole int32
 
 const (
-	NodeRole_Leader    NodePole = 1
-	NodeRole_Candidate NodePole = 2
-	NodeRole_Follower  NodePole = 3
+	NodeRoleLeader    NodePole = 1
+	NodeRoleCandidate NodePole = 2
+	NodeRoleFollower  NodePole = 3
 )
 
 func (r NodePole) ToString() string {
 	switch r {
-	case NodeRole_Leader:
+	case NodeRoleLeader:
 		return "leader"
-	case NodeRole_Candidate:
+	case NodeRoleCandidate:
 		return "candidate"
-	case NodeRole_Follower:
+	case NodeRoleFollower:
 		return "follower"
 	default:
 		return "UNKNOWN"

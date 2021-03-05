@@ -47,13 +47,17 @@ func (p *Peer) SetNextIndex(ni int64) {
 	p.nextIndex = ni
 }
 
+func (p *Peer) SetMatchIndex(mi int64) {
+	p.matchIndex = mi
+}
+
 //DecreaseNextIndex : decrease nextIndex by 1
 func (p *Peer) DecreaseNextIndex() {
 	p.nextIndex--
 }
 
-//UpdatePeerNextandMatchIndex : update nextIndex and matchIndex
-func (p *Peer) UpdatePeerNextandMatchIndex() {
+//UpdateNextIndexAndMatchIndex : update nextIndex and matchIndex
+func (p *Peer) UpdateNextIndexAndMatchIndex() {
 	p.nextIndex
 	p.matchIndex
 }

@@ -46,7 +46,7 @@ var nodeLock sync.Mutex
 func NewNodeInstance(I string, peers string) *Node {
 
 	nodeInstance = &Node{
-		role:            NodeRole_Follower,
+		role:            NodeRoleFollower,
 		currentTerm:     0,
 		electionTimeout: 0,
 		myAddr:          common.ParseAddress(I),
@@ -132,9 +132,9 @@ func (n *Node) MainLoop() {
 		time.Sleep(time.Second)
 
 		switch n.role {
-		case NodeRole_Leader:
+		case NodeRoleLeader:
 			n.SendHeartBeatToFollowers()
-		case NodeRole_Follower:
+		case NodeRoleFollower:
 			if n.electionTimeout > ELECTION_TIMEOUT {
 				n.ResetElectionTimeout()
 				n.GotoElectionPeriod()
@@ -158,7 +158,7 @@ func (n *Node) appendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm i
 	for ; err != nil; err = n.sendHeartBeatOrAppendLogToFollower(peer, prevLogIndex, prevLogTerm) {
 		peer.DecreaseNextIndex()
 	}
-	peer.UpdatePeerNextandMatchIndex()
+	peer.UpdateNextIndexAndMatchIndex()
 }
 
 func (n *Node) AppendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
@@ -170,7 +170,7 @@ func (n *Node) AppendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
 func (n *Node) GotoElectionPeriod() {
 	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.Name, n.myAddr.Port)
 	n.IncCurrentTerm()
-	n.SetRole(NodeRole_Candidate)
+	n.SetRole(NodeRoleCandidate)
 	n.SetVotedFor(n.GetMyAddress().GenerateUName())
 	halfNumOfNodes := (float64(len(n.peers)) + 1.0) / 2.0
 	numOfAgree := 1.0 // vote to myself
@@ -188,7 +188,16 @@ func (n *Node) GotoElectionPeriod() {
 		}
 	}
 	if numOfAgree > halfNumOfNodes {
-		n.SetRole(NodeRole_Leader)
+		n.SetRole(NodeRoleLeader)
+		n.InitPeersNextIndexAndMatchIndex()
+	}
+}
+
+//InitPeersNextIndexAndMatchIndex init peers' nextIndex and matchIndex when the node becomes a leader
+func (n *Node) InitPeersNextIndexAndMatchIndex() {
+	for _, peer := range n.peers {
+		peer.SetNextIndex(n.getLastNodeLogEntryIndex() + 1)
+		peer.SetMatchIndex(0)
 	}
 }
 
@@ -201,9 +210,8 @@ func (n *Node) getNodeLogEntryTermByIndex(index int64) (int64, error) {
 	logEntry := n.GetNodeLog()[index]
 	if logEntry != nil {
 		return logEntry.Term, nil
-	} else {
-		return 0, errors.New("The log entry does not exist.")
 	}
+	return 0, errors.New("The log entry does not exist")
 }
 
 func (n *Node) getLastNodeLogEntryIndex() int64 {
@@ -232,8 +240,17 @@ func (n *Node) ApplyNodeLogToStateMachine() {
 	}
 }
 
-func (n *Node) UpdateMyCommitIndexWhenIamLeader() {
+func (n *Node) isMajorityMatchIndexGreaterThanN(newCI int64) bool {
+	return true
+}
 
+func (n *Node) UpdateMyCommitIndexWhenIamLeader() {
+	for newCI := n.GetCommitIndex() + 1; n.isMajorityMatchIndexGreaterThanN(newCI); newCI++ {
+		term, err := n.getNodeLogEntryTermByIndex(newCI)
+		if err == nil && term == n.GetCurrentTerm() {
+			n.SetCommitIndex(newCI)
+		}
+	}
 }
 
 func (n *Node) UpdateMyCommitIndexWhenIamFollower(leaderCommit int64) {
@@ -371,7 +388,7 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 	var message string
 	var err error = nil
 
-	leaderId := in.GetLeaderId()
+	leaderID := in.GetLeaderId()
 	leaderTerm := in.GetTerm()
 	leaderCommit := in.GetLeaderCommit()
 	myName := GetNodeInstance().GetMyAddress().GenerateUName()
@@ -379,14 +396,14 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 	if leaderTerm >= GetNodeInstance().GetCurrentTerm() {
 		logEntries := in.GetLogEntries()
 		if logEntries == nil {
-			log.Printf("I [%v] received heart beat from leader: %v, term %v", myName, leaderId, leaderTerm)
+			log.Printf("I [%v] received heart beat from leader: %v, term %v", myName, leaderID, leaderTerm)
 			GetNodeInstance().ResetElectionTimeout()
-			GetNodeInstance().SetRole(NodeRole_Follower)
+			GetNodeInstance().SetRole(NodeRoleFollower)
 			GetNodeInstance().SetCurrentTerm(leaderTerm)
 			success = true
-			message = "[" + myName + "] accepted the heart beat from leader " + leaderId
+			message = "[" + myName + "] accepted the heart beat from leader " + leaderID
 		} else {
-			log.Printf("I [%v] am required to append log entry from leader: %v, term %v", myName, leaderId, leaderTerm)
+			log.Printf("I [%v] am required to append log entry from leader: %v, term %v", myName, leaderID, leaderTerm)
 			logEntryIndex := in.GetPrevLogIndex()
 			logEntryTerm, rc := GetNodeInstance().getNodeLogEntryTermByIndex(logEntryIndex)
 			if rc != nil {
@@ -401,7 +418,7 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 					GetNodeInstance().appendEntryFromLeaderToMyNodeLog(logEntries)
 					GetNodeInstance().UpdateMyCommitIndexWhenIamFollower(leaderCommit)
 					success = true
-					message = "[" + myName + "] have appended the log entries from " + leaderId + " successfully."
+					message = "[" + myName + "] have appended the log entries from " + leaderID + " successfully."
 				}
 			} else {
 				success = false
@@ -410,7 +427,7 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 			}
 		}
 	} else {
-		message = "[" + myName + "] have refused the append request from " + leaderId
+		message = "[" + myName + "] have refused the append request from " + leaderID
 		success = false
 		err = errors.New(message)
 	}

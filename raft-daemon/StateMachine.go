@@ -40,9 +40,8 @@ func (sm *StateMachine) Get(_key string) (int64, error) {
 	_curVal, ok := sm.data[_key]
 	if ok {
 		return _curVal, nil
-	} else {
-		errMsg := "The value for the key [" + _key + "] does not exist in state machine."
-		log.Printf(errMsg)
-		return 0, errors.New(errMsg)
 	}
+	errMsg := "The value for the key [" + _key + "] does not exist in state machine."
+	log.Printf(errMsg)
+	return 0, errors.New(errMsg)
 }
