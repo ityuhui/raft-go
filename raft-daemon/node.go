@@ -163,7 +163,7 @@ func (n *Node) appendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm i
 
 func (n *Node) AppendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
 	for _, peer := range n.peers {
-		go n.sendHeartBeatOrAppendLogToFollower(peer, prevLogIndex, prevLogTerm)
+		go n.appendLogToFollower(peer, prevLogIndex, prevLogTerm)
 	}
 }
 

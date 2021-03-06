@@ -58,6 +58,6 @@ func (p *Peer) DecreaseNextIndex() {
 
 //UpdateNextIndexAndMatchIndex : update nextIndex and matchIndex
 func (p *Peer) UpdateNextIndexAndMatchIndex() {
-	p.nextIndex
-	p.matchIndex
+	p.matchIndex = p.nextIndex
+	p.nextIndex++
 }
