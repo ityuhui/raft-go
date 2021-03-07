@@ -6,6 +6,7 @@ import (
 	"sync"
 )
 
+//StateMachine : state machine on a node
 type StateMachine struct {
 	data map[string]int64
 }
@@ -13,6 +14,7 @@ type StateMachine struct {
 var stateMachineInstance *StateMachine = nil
 var stateMachineLock sync.Mutex
 
+//NewStateMachineInstance : Create a new instance of state machine
 func NewStateMachineInstance() *StateMachine {
 
 	stateMachineInstance = &StateMachine{
@@ -21,10 +23,12 @@ func NewStateMachineInstance() *StateMachine {
 	return stateMachineInstance
 }
 
+//GetStateMachineInstance : Get the instance of state machine
 func GetStateMachineInstance() *StateMachine {
 	return stateMachineInstance
 }
 
+//Set : Add or update (key,value) in state machine
 func (sm *StateMachine) Set(_key string, _newValue int64) {
 	_curVal, ok := sm.data[_key]
 	if ok {
@@ -36,6 +40,7 @@ func (sm *StateMachine) Set(_key string, _newValue int64) {
 	}
 }
 
+//Get : Get value by key in state chine
 func (sm *StateMachine) Get(_key string) (int64, error) {
 	_curVal, ok := sm.data[_key]
 	if ok {
