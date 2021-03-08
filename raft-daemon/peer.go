@@ -6,12 +6,14 @@ import (
 	"strings"
 )
 
+//Peer : The data structure for peer node
 type Peer struct {
 	address    *common.Address
 	nextIndex  int64
 	matchIndex int64
 }
 
+//InitPeers : Init peer nodes for a node
 func InitPeers(addrStrings string) []*Peer {
 	var peers []*Peer
 	splited := strings.Split(addrStrings, ",")
@@ -31,22 +33,22 @@ func InitPeers(addrStrings string) []*Peer {
 	return peers
 }
 
+//GetAddress : Get the address of peer node
 func (p *Peer) GetAddress() *common.Address {
 	return p.address
 }
 
+//GetNextIndex : Get nextIndex of peer node
 func (p *Peer) GetNextIndex() int64 {
 	return p.nextIndex
 }
 
-func (p *Peer) GetMatchIndex() int64 {
-	return p.matchIndex
-}
-
+//SetNextIndex : Set nextIndex of peer node
 func (p *Peer) SetNextIndex(ni int64) {
 	p.nextIndex = ni
 }
 
+//SetMatchIndex : Set matchIndex of peer node
 func (p *Peer) SetMatchIndex(mi int64) {
 	p.matchIndex = mi
 }
