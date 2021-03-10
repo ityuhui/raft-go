@@ -244,6 +244,7 @@ func (n *Node) isMajorityMatchIndexGreaterThanN(newCI int64) bool {
 	return true
 }
 
+//UpdateMyCommitIndexWhenIamLeader : update commitIndex when node is a leader
 func (n *Node) UpdateMyCommitIndexWhenIamLeader() {
 	for newCI := n.GetCommitIndex() + 1; n.isMajorityMatchIndexGreaterThanN(newCI); newCI++ {
 		term, err := n.getNodeLogEntryTermByIndex(newCI)
@@ -253,6 +254,7 @@ func (n *Node) UpdateMyCommitIndexWhenIamLeader() {
 	}
 }
 
+//UpdateMyCommitIndexWhenIamFollower : update commitIndex when node is a follower
 func (n *Node) UpdateMyCommitIndexWhenIamFollower(leaderCommit int64) {
 	if leaderCommit > n.GetCommitIndex() {
 		lastIndex := n.getLastNodeLogEntryIndex()

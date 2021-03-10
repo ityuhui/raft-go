@@ -1,14 +1,19 @@
 package main
 
-type NodePole int32
+//NodeRole : role of node
+type NodeRole int32
 
 const (
-	NodeRoleLeader    NodePole = 1
-	NodeRoleCandidate NodePole = 2
-	NodeRoleFollower  NodePole = 3
+	//NodeRoleLeader : leader
+	NodeRoleLeader NodeRole = 1
+	//NodeRoleCandidate : candidate
+	NodeRoleCandidate NodeRole = 2
+	//NodeRoleFollower : follower
+	NodeRoleFollower NodeRole = 3
 )
 
-func (r NodePole) ToString() string {
+// ToString : convert NodeRole to string
+func (r NodeRole) ToString() string {
 	switch r {
 	case NodeRoleLeader:
 		return "leader"
