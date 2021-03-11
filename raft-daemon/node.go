@@ -23,7 +23,7 @@ const (
 
 type Node struct {
 	// eclection
-	role            NodePole
+	role            NodeRole
 	currentTerm     int64
 	electionTimeout int
 	myAddr          *common.Address
@@ -75,7 +75,7 @@ func (n *Node) IncElectionTimeout() {
 	nodeLock.Unlock()
 }
 
-func (n *Node) SetRole(r NodePole) {
+func (n *Node) SetRole(r NodeRole) {
 	nodeLock.Lock()
 	n.role = r
 	nodeLock.Unlock()
@@ -121,33 +121,34 @@ func (n *Node) GetNodeLog() []*LogEntry {
 	return n.nodeLog
 }
 
+//Run : node runs
 func (n *Node) Run() {
 	go n.startRaftServer()
-	n.MainLoop()
+	n.mainLoop()
 }
 
-func (n *Node) MainLoop() {
+func (n *Node) mainLoop() {
 	for {
 		fmt.Printf("I [%s] am a %s...\n", n.GetMyAddress().GenerateUName(), n.role.ToString())
 		time.Sleep(time.Second)
 
 		switch n.role {
 		case NodeRoleLeader:
-			n.SendHeartBeatToFollowers()
+			n.sendHeartBeatToFollowers()
 		case NodeRoleFollower:
 			if n.electionTimeout > ELECTION_TIMEOUT {
 				n.ResetElectionTimeout()
-				n.GotoElectionPeriod()
+				n.gotoElectionPeriod()
 			} else {
 				n.IncElectionTimeout()
 			}
 		}
 
-		n.ApplyNodeLogToStateMachine()
+		n.applyNodeLogToStateMachine()
 	}
 }
 
-func (n *Node) SendHeartBeatToFollowers() {
+func (n *Node) sendHeartBeatToFollowers() {
 	for _, peer := range n.peers {
 		go n.sendHeartBeatOrAppendLogToFollower(peer, 0, 0)
 	}
@@ -161,13 +162,13 @@ func (n *Node) appendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm i
 	peer.UpdateNextIndexAndMatchIndex()
 }
 
-func (n *Node) AppendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
+func (n *Node) appendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
 	for _, peer := range n.peers {
 		go n.appendLogToFollower(peer, prevLogIndex, prevLogTerm)
 	}
 }
 
-func (n *Node) GotoElectionPeriod() {
+func (n *Node) gotoElectionPeriod() {
 	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.Name, n.myAddr.Port)
 	n.IncCurrentTerm()
 	n.SetRole(NodeRoleCandidate)
@@ -189,12 +190,11 @@ func (n *Node) GotoElectionPeriod() {
 	}
 	if numOfAgree > halfNumOfNodes {
 		n.SetRole(NodeRoleLeader)
-		n.InitPeersNextIndexAndMatchIndex()
+		n.initPeersNextIndexAndMatchIndex()
 	}
 }
 
-//InitPeersNextIndexAndMatchIndex init peers' nextIndex and matchIndex when the node becomes a leader
-func (n *Node) InitPeersNextIndexAndMatchIndex() {
+func (n *Node) initPeersNextIndexAndMatchIndex() {
 	for _, peer := range n.peers {
 		peer.SetNextIndex(n.getLastNodeLogEntryIndex() + 1)
 		peer.SetMatchIndex(0)
@@ -232,7 +232,8 @@ func (n *Node) addCmdToNodeLog(log string) int64 {
 	return int64(len(n.nodeLog))
 }
 
-func (n *Node) ApplyNodeLogToStateMachine() {
+//applyNodeLogToStateMachine : execute the command from node log in state machine
+func (n *Node) applyNodeLogToStateMachine() {
 	for n.GetCommitIndex() > n.lastApplied {
 		n.lastApplied++
 		logentry := n.nodeLog[n.lastApplied]
@@ -477,10 +478,10 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 		prevLogIndex := node.addCmdToNodeLog(in.GetText())
 		prevLogTerm, rc := node.getNodeLogEntryTermByIndex(prevLogIndex)
 		if rc == nil {
-			node.AppendLogToFollowers(prevLogIndex, prevLogTerm)
+			node.appendLogToFollowers(prevLogIndex, prevLogTerm)
 		}
 		node.UpdateMyCommitIndexWhenIamLeader()
-		node.ApplyNodeLogToStateMachine()
+		node.applyNodeLogToStateMachine()
 		if node.GetLastApplied() == node.GetCommitIndex() {
 			success = true
 			message = "The command is executed."
