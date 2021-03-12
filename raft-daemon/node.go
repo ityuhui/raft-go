@@ -21,6 +21,7 @@ const (
 	INC_ELECTION_TIMEOUT = 1
 )
 
+//Node : data structure for node
 type Node struct {
 	// eclection
 	role            NodeRole
@@ -43,6 +44,7 @@ type Node struct {
 var nodeInstance *Node = nil
 var nodeLock sync.Mutex
 
+//NewNodeInstance : create an instance of node
 func NewNodeInstance(I string, peers string) *Node {
 
 	nodeInstance = &Node{
@@ -59,65 +61,65 @@ func NewNodeInstance(I string, peers string) *Node {
 	return nodeInstance
 }
 
-func GetNodeInstance() *Node {
+func getNodeInstance() *Node {
 	return nodeInstance
 }
 
-func (n *Node) ResetElectionTimeout() {
+func (n *Node) resetElectionTimeout() {
 	nodeLock.Lock()
 	n.electionTimeout = 0
 	nodeLock.Unlock()
 }
 
-func (n *Node) IncElectionTimeout() {
+func (n *Node) incElectionTimeout() {
 	nodeLock.Lock()
 	n.electionTimeout += INC_ELECTION_TIMEOUT
 	nodeLock.Unlock()
 }
 
-func (n *Node) SetRole(r NodeRole) {
+func (n *Node) setRole(r NodeRole) {
 	nodeLock.Lock()
 	n.role = r
 	nodeLock.Unlock()
 }
 
-func (n *Node) IncCurrentTerm() {
+func (n *Node) incCurrentTerm() {
 	n.currentTerm++
 }
 
-func (n *Node) GetCurrentTerm() int64 {
+func (n *Node) getCurrentTerm() int64 {
 	return n.currentTerm
 }
 
-func (n *Node) SetCurrentTerm(term int64) {
+func (n *Node) setCurrentTerm(term int64) {
 	n.currentTerm = term
 }
 
-func (n *Node) GetMyAddress() *common.Address {
+func (n *Node) getMyAddress() *common.Address {
 	return n.myAddr
 }
 
-func (n *Node) GetVotedFor() string {
+func (n *Node) getVotedFor() string {
 	return n.votedFor
 }
 
-func (n *Node) SetVotedFor(votedFor string) {
+func (n *Node) setVotedFor(votedFor string) {
 	n.votedFor = votedFor
 }
 
-func (n *Node) GetLastApplied() int64 {
+func (n *Node) getLastApplied() int64 {
 	return n.lastApplied
 }
 
-func (n *Node) GetCommitIndex() int64 {
+func (n *Node) getCommitIndex() int64 {
 	return n.commitIndex
 }
 
-func (n *Node) SetCommitIndex(index int64) {
+func (n *Node) setCommitIndex(index int64) {
 	n.commitIndex = index
 }
 
-func (n *Node) GetNodeLog() []*LogEntry {
+func (n *Node) getNodeLog() []*LogEntry {
 	return n.nodeLog
 }
 
@@ -129,7 +131,7 @@ func (n *Node) Run() {
 
 func (n *Node) mainLoop() {
 	for {
-		fmt.Printf("I [%s] am a %s...\n", n.GetMyAddress().GenerateUName(), n.role.ToString())
+		fmt.Printf("I [%s] am a %s...\n", n.getMyAddress().GenerateUName(), n.role.ToString())
 		time.Sleep(time.Second)
 
 		switch n.role {
@@ -137,10 +139,10 @@ func (n *Node) mainLoop() {
 			n.sendHeartBeatToFollowers()
 		case NodeRoleFollower:
 			if n.electionTimeout > ELECTION_TIMEOUT {
-				n.ResetElectionTimeout()
+				n.resetElectionTimeout()
 				n.gotoElectionPeriod()
 			} else {
-				n.IncElectionTimeout()
+				n.incElectionTimeout()
 			}
 		}
 
@@ -170,9 +172,9 @@ func (n *Node) appendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
 
 func (n *Node) gotoElectionPeriod() {
 	fmt.Printf("I [%s:%s] starts to electe ...\n", n.myAddr.Name, n.myAddr.Port)
-	n.IncCurrentTerm()
-	n.SetRole(NodeRoleCandidate)
-	n.SetVotedFor(n.GetMyAddress().GenerateUName())
+	n.incCurrentTerm()
+	n.setRole(NodeRoleCandidate)
+	n.setVotedFor(n.getMyAddress().GenerateUName())
 	halfNumOfNodes := (float64(len(n.peers)) + 1.0) / 2.0
 	numOfAgree := 1.0 // vote to myself
 
@@ -189,7 +191,7 @@ func (n *Node) gotoElectionPeriod() {
 		}
 	}
 	if numOfAgree > halfNumOfNodes {
-		n.SetRole(NodeRoleLeader)
+		n.setRole(NodeRoleLeader)
 		n.initPeersNextIndexAndMatchIndex()
 	}
 }
@@ -203,11 +205,11 @@ func (n *Node) initPeersNextIndexAndMatchIndex() {
 
 // node log operations
 func (n *Node) getNodeLogLength() int64 {
-	return int64(len(n.GetNodeLog()))
+	return int64(len(n.getNodeLog()))
 }
 
 func (n *Node) getNodeLogEntryTermByIndex(index int64) (int64, error) {
-	logEntry := n.GetNodeLog()[index]
+	logEntry := n.getNodeLog()[index]
 	if logEntry != nil {
 		return logEntry.Term, nil
 	}
@@ -225,7 +227,7 @@ func (n *Node) addToNodeLog(entry *LogEntry) int64 {
 
 func (n *Node) addCmdToNodeLog(log string) int64 {
 	entry := &LogEntry{
-		Term: n.GetCurrentTerm(),
+		Term: n.getCurrentTerm(),
 		Text: log,
 	}
 	n.nodeLog = append(n.nodeLog, entry)
@@ -234,7 +236,7 @@ func (n *Node) addCmdToNodeLog(log string) int64 {
 
 //applyNodeLogToStateMachine : execute the command from node log in state machine
 func (n *Node) applyNodeLogToStateMachine() {
-	for n.GetCommitIndex() > n.lastApplied {
+	for n.getCommitIndex() > n.lastApplied {
 		n.lastApplied++
 		logentry := n.nodeLog[n.lastApplied]
 		n.executeStateMachineCommand(logentry.Text)
@@ -247,22 +249,22 @@ func (n *Node) isMajorityMatchIndexGreaterThanN(newCI int64) bool {
 
 //UpdateMyCommitIndexWhenIamLeader : update commitIndex when node is a leader
 func (n *Node) UpdateMyCommitIndexWhenIamLeader() {
-	for newCI := n.GetCommitIndex() + 1; n.isMajorityMatchIndexGreaterThanN(newCI); newCI++ {
+	for newCI := n.getCommitIndex() + 1; n.isMajorityMatchIndexGreaterThanN(newCI); newCI++ {
 		term, err := n.getNodeLogEntryTermByIndex(newCI)
-		if err == nil && term == n.GetCurrentTerm() {
-			n.SetCommitIndex(newCI)
+		if err == nil && term == n.getCurrentTerm() {
+			n.setCommitIndex(newCI)
 		}
 	}
 }
 
 //UpdateMyCommitIndexWhenIamFollower : update commitIndex when node is a follower
 func (n *Node) UpdateMyCommitIndexWhenIamFollower(leaderCommit int64) {
-	if leaderCommit > n.GetCommitIndex() {
+	if leaderCommit > n.getCommitIndex() {
 		lastIndex := n.getLastNodeLogEntryIndex()
 		if leaderCommit <= lastIndex {
-			n.SetCommitIndex(leaderCommit)
+			n.setCommitIndex(leaderCommit)
 		} else {
-			n.SetCommitIndex(lastIndex)
+			n.setCommitIndex(lastIndex)
 		}
 	}
 }
@@ -272,7 +274,7 @@ func (n *Node) deleteLogEntryAndItsFollowerInNodeLog(index int64) error {
 		return errors.New("Cannot find the log entry with the index: " + strconv.FormatInt(index, 10))
 	}
 	var i int64
-	nodeLog := n.GetNodeLog()
+	nodeLog := n.getNodeLog()
 	for i = index; i < n.getNodeLogLength(); i++ {
 		nodeLog[i] = nil
 	}
@@ -298,8 +300,8 @@ func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
 		var i int64
 		for i = 0; i < peerNextIndex; i++ {
 			logEntry := &raft_rpc.LogEntry{
-				Term: n.GetNodeLog()[i].Term,
-				Text: n.GetNodeLog()[i].Text,
+				Term: n.getNodeLog()[i].Term,
+				Text: n.getNodeLog()[i].Text,
 			}
 			toAppend = append(toAppend, logEntry)
 		}
@@ -324,12 +326,12 @@ func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	r, err := c.AppendEntries(ctx, &raft_rpc.AppendRequest{
-		Term:         n.GetCurrentTerm(),
-		LeaderId:     n.GetMyAddress().GenerateUName(),
+		Term:         n.getCurrentTerm(),
+		LeaderId:     n.getMyAddress().GenerateUName(),
 		PrevLogIndex: prevLogIndex,
 		PrevLogTerm:  prevLogTerm,
 		LogEntries:   n.prepareNodeLogToAppend(peer),
-		LeaderCommit: n.GetCommitIndex(),
+		LeaderCommit: n.getCommitIndex(),
 	})
 	if err != nil {
 		log.Fatalf("could not tell my heart beat: %v", err)
@@ -360,8 +362,8 @@ func (n *Node) sendVoteRequest(addr *common.Address) bool {
 	// Contact the server and print out its response.
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.GetMyAddress().GenerateUName(),
-		Term: n.GetCurrentTerm()})
+	r, err := c.RequestVote(ctx, &raft_rpc.VoteRequest{CandidateId: n.getMyAddress().GenerateUName(),
+		Term: n.getCurrentTerm()})
 	if err != nil {
 		log.Fatalf("could not request to vote: %v", err)
 	}
@@ -394,32 +396,32 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 	leaderID := in.GetLeaderId()
 	leaderTerm := in.GetTerm()
 	leaderCommit := in.GetLeaderCommit()
-	myName := GetNodeInstance().GetMyAddress().GenerateUName()
+	myName := getNodeInstance().getMyAddress().GenerateUName()
 
-	if leaderTerm >= GetNodeInstance().GetCurrentTerm() {
+	if leaderTerm >= getNodeInstance().getCurrentTerm() {
 		logEntries := in.GetLogEntries()
 		if logEntries == nil {
 			log.Printf("I [%v] received heart beat from leader: %v, term %v", myName, leaderID, leaderTerm)
-			GetNodeInstance().ResetElectionTimeout()
-			GetNodeInstance().SetRole(NodeRoleFollower)
-			GetNodeInstance().SetCurrentTerm(leaderTerm)
+			getNodeInstance().resetElectionTimeout()
+			getNodeInstance().setRole(NodeRoleFollower)
+			getNodeInstance().setCurrentTerm(leaderTerm)
 			success = true
 			message = "[" + myName + "] accepted the heart beat from leader " + leaderID
 		} else {
 			log.Printf("I [%v] am required to append log entry from leader: %v, term %v", myName, leaderID, leaderTerm)
 			logEntryIndex := in.GetPrevLogIndex()
-			logEntryTerm, rc := GetNodeInstance().getNodeLogEntryTermByIndex(logEntryIndex)
+			logEntryTerm, rc := getNodeInstance().getNodeLogEntryTermByIndex(logEntryIndex)
 			if rc != nil {
 				if logEntryTerm != in.GetPrevLogTerm() {
 					message = "[" + myName + "] has a log entry with the index [" + fmt.Sprint(logEntryIndex) + "], but its term is [" + fmt.Sprint(logEntryTerm) + "], not [" + fmt.Sprint(in.GetPrevLogTerm()) + "] from append request."
 				}
-				err = GetNodeInstance().deleteLogEntryAndItsFollowerInNodeLog(logEntryIndex)
+				err = getNodeInstance().deleteLogEntryAndItsFollowerInNodeLog(logEntryIndex)
 				if err != nil {
 					success = false
 					message = err.Error()
 				} else {
-					GetNodeInstance().appendEntryFromLeaderToMyNodeLog(logEntries)
-					GetNodeInstance().UpdateMyCommitIndexWhenIamFollower(leaderCommit)
+					getNodeInstance().appendEntryFromLeaderToMyNodeLog(logEntries)
+					getNodeInstance().UpdateMyCommitIndexWhenIamFollower(leaderCommit)
 					success = true
 					message = "[" + myName + "] have appended the log entries from " + leaderID + " successfully."
 				}
@@ -436,33 +438,33 @@ func (s *server) AppendEntries(ctx context.Context, in *raft_rpc.AppendRequest) 
 	}
 	log.Printf("I %v", message)
 
-	return &raft_rpc.AppendReply{Term: GetNodeInstance().GetCurrentTerm(), Success: success, Message: message}, err
+	return &raft_rpc.AppendReply{Term: getNodeInstance().getCurrentTerm(), Success: success, Message: message}, err
 }
 
 func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*raft_rpc.VoteReply, error) {
-	log.Printf("I [%v] received vote request from candinate: %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetCandidateId())
+	log.Printf("I [%v] received vote request from candinate: %v", getNodeInstance().getMyAddress().GenerateUName(), in.GetCandidateId())
 	candinateTerm := in.GetTerm()
 	candinateID := in.GetCandidateId()
 	agree := false
 
-	if candinateTerm > GetNodeInstance().GetCurrentTerm() &&
-		(GetNodeInstance().GetVotedFor() == "" ||
-			candinateID == GetNodeInstance().GetVotedFor()) {
-		GetNodeInstance().SetVotedFor(candinateID)
-		GetNodeInstance().SetCurrentTerm(candinateTerm)
-		GetNodeInstance().ResetElectionTimeout()
+	if candinateTerm > getNodeInstance().getCurrentTerm() &&
+		(getNodeInstance().getVotedFor() == "" ||
+			candinateID == getNodeInstance().getVotedFor()) {
+		getNodeInstance().setVotedFor(candinateID)
+		getNodeInstance().setCurrentTerm(candinateTerm)
+		getNodeInstance().resetElectionTimeout()
 		agree = true
-		log.Printf("I [%v] agreed the vote request from candinate: %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetCandidateId())
+		log.Printf("I [%v] agreed the vote request from candinate: %v", getNodeInstance().getMyAddress().GenerateUName(), in.GetCandidateId())
 	} else {
 		agree = false
-		log.Printf("I [%v] disagreed the vote request from candinate: %v", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetCandidateId())
+		log.Printf("I [%v] disagreed the vote request from candinate: %v", getNodeInstance().getMyAddress().GenerateUName(), in.GetCandidateId())
 	}
 
 	return &raft_rpc.VoteReply{Term: candinateTerm, VoteGranted: agree}, nil
 }
 
 func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommandRequest) (*raft_rpc.ExecuteCommandReply, error) {
-	log.Printf("I [%v] am requested to execute command <%v> from client.", GetNodeInstance().GetMyAddress().GenerateUName(), in.GetMode()+in.GetText())
+	log.Printf("I [%v] am requested to execute command <%v> from client.", getNodeInstance().getMyAddress().GenerateUName(), in.GetMode()+in.GetText())
 	success := false
 	var value int64 = 0
 	var rc error = nil
@@ -474,7 +476,7 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 			message = "The command is executed."
 		}
 	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
-		node := GetNodeInstance()
+		node := getNodeInstance()
 		prevLogIndex := node.addCmdToNodeLog(in.GetText())
 		prevLogTerm, rc := node.getNodeLogEntryTermByIndex(prevLogIndex)
 		if rc == nil {
@@ -482,7 +484,7 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 		}
 		node.UpdateMyCommitIndexWhenIamLeader()
 		node.applyNodeLogToStateMachine()
-		if node.GetLastApplied() == node.GetCommitIndex() {
+		if node.getLastApplied() == node.getCommitIndex() {
 			success = true
 			message = "The command is executed."
 		}
