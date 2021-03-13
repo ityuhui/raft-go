@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	ELECTION_TIMEOUT     = 5
-	INC_ELECTION_TIMEOUT = 1
+	electionTimeout    = 5
+	incElectionTimeout = 1
 )
 
 //Node : data structure for node
@@ -73,7 +73,7 @@ func (n *Node) resetElectionTimeout() {
 
 func (n *Node) incElectionTimeout() {
 	nodeLock.Lock()
-	n.electionTimeout += INC_ELECTION_TIMEOUT
+	n.electionTimeout += incElectionTimeout
 	nodeLock.Unlock()
 }
 
@@ -138,7 +138,7 @@ func (n *Node) mainLoop() {
 		case NodeRoleLeader:
 			n.sendHeartBeatToFollowers()
 		case NodeRoleFollower:
-			if n.electionTimeout > ELECTION_TIMEOUT {
+			if n.electionTimeout > electionTimeout {
 				n.resetElectionTimeout()
 				n.gotoElectionPeriod()
 			} else {
