@@ -26,8 +26,8 @@ func NewClientInstance(header string, get string, set string) *Client {
 	return ins
 }
 
-func (c *Client) Run() {
-	ret, val, msg := c.executeCommand()
+func (client *Client) Run() {
+	ret, val, msg := client.executeCommand()
 	log.Printf("Execute command result: %v", ret)
 	log.Printf("Execute command value: %v", val)
 	log.Printf("Execute command message: %v", msg)
