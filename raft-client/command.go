@@ -11,14 +11,14 @@ type Command struct {
 //ParseCommand : parse string to command
 func ParseCommand(get string, set string) *Command {
 	cmd := &Command{
-		Mode: common.COMMANDMODE_UNKNOWN,
+		Mode: common.CommandModeUnknown,
 		Text: "",
 	}
 	if get != "" {
-		cmd.Mode = common.COMMANDMODE_GET
+		cmd.Mode = common.CommandModeGet
 		cmd.Text = get
 	} else if set != "" {
-		cmd.Mode = common.COMMANDMODE_SET
+		cmd.Mode = common.CommandModeSet
 		cmd.Text = set
 	}
 	return cmd

@@ -469,13 +469,13 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 	var value int64 = 0
 	var rc error = nil
 	message := ""
-	if in.GetMode() == common.COMMANDMODE_GET.ToString() {
+	if in.GetMode() == common.CommandModeGet.ToString() {
 		value, rc = GetStateMachineInstance().Get(in.GetText())
 		if rc == nil {
 			success = true
 			message = "The command is executed."
 		}
-	} else if in.GetMode() == common.COMMANDMODE_SET.ToString() {
+	} else if in.GetMode() == common.CommandModeSet.ToString() {
 		node := getNodeInstance()
 		prevLogIndex := node.addCmdToNodeLog(in.GetText())
 		prevLogTerm, rc := node.getNodeLogEntryTermByIndex(prevLogIndex)
