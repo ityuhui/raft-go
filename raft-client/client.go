@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 )
 
+//Client : data structre of client
 type Client struct {
 	headerAddr *common.Address
 	command    *Command
@@ -17,6 +18,7 @@ type Client struct {
 
 var ins *Client = nil
 
+//NewClientInstance : create n new client instance
 func NewClientInstance(header string, get string, set string) *Client {
 
 	ins = &Client{
