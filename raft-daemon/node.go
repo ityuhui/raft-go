@@ -231,7 +231,7 @@ func (n *Node) addCmdToNodeLog(log string) int64 {
 		Text: log,
 	}
 	n.nodeLog = append(n.nodeLog, entry)
-	return int64(len(n.nodeLog))
+	return int64(len(n.nodeLog) - 1) // The beginning index is 0
 }
 
 //applyNodeLogToStateMachine : execute the command from node log in state machine
@@ -464,7 +464,7 @@ func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*ra
 }
 
 func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommandRequest) (*raft_rpc.ExecuteCommandReply, error) {
-	log.Printf("I [%v] am requested to execute command <%v> from client.", getNodeInstance().getMyAddress().GenerateUName(), in.GetMode()+in.GetText())
+	log.Printf("I [%v] am requested to execute command <%v %v> from client.", getNodeInstance().getMyAddress().GenerateUName(), in.GetMode(), in.GetText())
 	success := false
 	var value int64 = 0
 	var rc error = nil
