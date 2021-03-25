@@ -1,5 +1,6 @@
 package common
 
+//CommandMode : command mode enum
 type CommandMode int32
 
 const (
