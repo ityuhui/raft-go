@@ -244,7 +244,17 @@ func (n *Node) applyNodeLogToStateMachine() {
 }
 
 func (n *Node) isMajorityMatchIndexGreaterThanN(newCI int64) bool {
-	return true
+	numOfGreater := 0.0
+	for _, peer := range n.peers {
+		if peer.GetMatchIndex() > newCI {
+			numOfGreater++
+		}
+	}
+	halfNumOfNodes := (float64(len(n.peers)) + 1.0) / 2.0
+	if numOfGreater > halfNumOfNodes {
+		return true
+	}
+	return false
 }
 
 //UpdateMyCommitIndexWhenIamLeader : update commitIndex when node is a leader
