@@ -236,7 +236,10 @@ func (n *Node) addCmdToNodeLog(log string) int64 {
 
 //applyNodeLogToStateMachine : execute the command from node log in state machine
 func (n *Node) applyNodeLogToStateMachine() {
+	fname := "applyNodeLogToStateMachine()"
+	log.Printf("%v: n.getCommitIndex()=%v, n.lastApplied=%v", fname, n.getCommitIndex(), n.lastApplied)
 	for n.getCommitIndex() > n.lastApplied {
+		log.Printf("%v: n.getCommitIndex()=%v, n.lastApplied=%v", fname, n.getCommitIndex(), n.lastApplied)
 		n.lastApplied++
 		logentry := n.nodeLog[n.lastApplied]
 		n.executeStateMachineCommand(logentry.Text)
@@ -352,6 +355,8 @@ func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64
 
 // state machine operations
 func (n *Node) executeStateMachineCommand(cmd string) {
+	fname := "executeStateMachineCommand()"
+	log.Printf("%v: enter", fname)
 	cmds := strings.Split(cmd, "=")
 	key := cmds[0]
 	value, _ := strconv.ParseInt(cmds[1], 10, 64)
@@ -474,6 +479,7 @@ func (s *server) RequestVote(ctx context.Context, in *raft_rpc.VoteRequest) (*ra
 }
 
 func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommandRequest) (*raft_rpc.ExecuteCommandReply, error) {
+	fname := "ExecuteCommand()"
 	log.Printf("I [%v] am requested to execute command <%v %v> from client.", getNodeInstance().getMyAddress().GenerateUName(), in.GetMode(), in.GetText())
 	success := false
 	var value int64 = 0
@@ -488,9 +494,13 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 	} else if in.GetMode() == common.CommandModeSet.ToString() {
 		node := getNodeInstance()
 		prevLogIndex := node.addCmdToNodeLog(in.GetText())
+		log.Printf("%v: prevLogIndex=%v", fname, prevLogIndex)
 		prevLogTerm, rc := node.getNodeLogEntryTermByIndex(prevLogIndex)
 		if rc == nil {
 			node.appendLogToFollowers(prevLogIndex, prevLogTerm)
+			log.Printf("%v: prevLogTerm=%v", fname, prevLogTerm)
+		} else {
+			log.Printf("%v: err of getNodeLogEntryTermByIndex=%v", fname, rc.Error())
 		}
 		node.UpdateMyCommitIndexWhenIamLeader()
 		node.applyNodeLogToStateMachine()

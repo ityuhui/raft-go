@@ -48,6 +48,11 @@ func (p *Peer) SetNextIndex(ni int64) {
 	p.nextIndex = ni
 }
 
+//GetMatchIndex : Get matchIndex of peer node
+func (p *Peer) GetMatchIndex() int64 {
+	return p.matchIndex
+}
+
 //SetMatchIndex : Set matchIndex of peer node
 func (p *Peer) SetMatchIndex(mi int64) {
 	p.matchIndex = mi
