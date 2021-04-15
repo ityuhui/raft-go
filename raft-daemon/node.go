@@ -43,6 +43,7 @@ type Node struct {
 
 var nodeInstance *Node = nil
 var nodeLock sync.Mutex
+var g_wg4appendingLogToFollowers sync.WaitGroup
 
 //NewNodeInstance : create an instance of node
 func NewNodeInstance(I string, peers string) *Node {
@@ -54,6 +55,7 @@ func NewNodeInstance(I string, peers string) *Node {
 		myAddr:          common.ParseAddress(I),
 		peers:           InitPeers(peers),
 		votedFor:        "",
+		nodeLog:         initNodeLog(),
 		commitIndex:     0,
 		lastApplied:     0,
 		stateMachine:    NewStateMachineInstance(),
@@ -123,6 +125,19 @@ func (n *Node) getNodeLog() []*LogEntry {
 	return n.nodeLog
 }
 
+func initNodeLog() []*LogEntry {
+	var nodeLog []*LogEntry
+	/* The first log entry (index:0) is place-holder,
+	 * the valid log entry will begin at the index of "1"
+	 */
+	entry := &LogEntry{
+		Term: 0,
+		Text: "",
+	}
+	nodeLog = append(nodeLog, entry)
+	return nodeLog
+}
+
 //Run : node runs
 func (n *Node) Run() {
 	go n.startRaftServer()
@@ -157,17 +172,27 @@ func (n *Node) sendHeartBeatToFollowers() {
 }
 
 func (n *Node) appendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
+	fname := "appendLogToFollower"
+	log.Printf("%v: enter...prevLogIndex=%v, prevLogTerm=%v, ", fname, prevLogIndex, prevLogTerm)
 	var err error
 	for ; err != nil; err = n.sendHeartBeatOrAppendLogToFollower(peer, prevLogIndex, prevLogTerm) {
 		peer.DecreaseNextIndex()
+		log.Printf("%v: [%v] nextIndex=%v, ", fname, peer.GetAddress().GenerateUName(), peer.GetNextIndex())
 	}
 	peer.UpdateNextIndexAndMatchIndex()
+	log.Printf("%v: [%v] nextIndex=%v, matchIndex=%v, ", fname, peer.GetAddress().GenerateUName(), peer.GetNextIndex(), peer.GetMatchIndex())
+	g_wg4appendingLogToFollowers.Done()
 }
 
 func (n *Node) appendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
+	fname := "appendLogToFollowers"
+	log.Printf("%v: enter...", fname)
 	for _, peer := range n.peers {
+		log.Printf("%v: will send to [%v]", fname, peer.GetAddress().GenerateUName())
+		g_wg4appendingLogToFollowers.Add(1)
 		go n.appendLogToFollower(peer, prevLogIndex, prevLogTerm)
 	}
+	g_wg4appendingLogToFollowers.Wait()
 }
 
 func (n *Node) gotoElectionPeriod() {
@@ -220,12 +245,12 @@ func (n *Node) getLastNodeLogEntryIndex() int64 {
 	return n.getNodeLogLength()
 }
 
-func (n *Node) addToNodeLog(entry *LogEntry) int64 {
+func (n *Node) addEntryToNodeLog(entry *LogEntry) int64 {
 	n.nodeLog = append(n.nodeLog, entry)
 	return n.getNodeLogLength()
 }
 
-func (n *Node) addCmdToNodeLog(log string) int64 {
+func (n *Node) addStringToNodeLog(log string) int64 {
 	entry := &LogEntry{
 		Term: n.getCurrentTerm(),
 		Text: log,
@@ -246,15 +271,15 @@ func (n *Node) applyNodeLogToStateMachine() {
 	}
 }
 
-func (n *Node) isMajorityMatchIndexGreaterThanN(newCI int64) bool {
-	numOfGreater := 0.0
+func (n *Node) isMajorityMatchIndexGreaterThanOrEqualsTo(newCI int64) bool {
+	numOfGreaterOrEqual := 0.0
 	for _, peer := range n.peers {
-		if peer.GetMatchIndex() > newCI {
-			numOfGreater++
+		if peer.GetMatchIndex() >= newCI {
+			numOfGreaterOrEqual++
 		}
 	}
 	halfNumOfNodes := (float64(len(n.peers)) + 1.0) / 2.0
-	if numOfGreater > halfNumOfNodes {
+	if numOfGreaterOrEqual > halfNumOfNodes {
 		return true
 	}
 	return false
@@ -262,12 +287,17 @@ func (n *Node) isMajorityMatchIndexGreaterThanN(newCI int64) bool {
 
 //UpdateMyCommitIndexWhenIamLeader : update commitIndex when node is a leader
 func (n *Node) UpdateMyCommitIndexWhenIamLeader() {
-	for newCI := n.getCommitIndex() + 1; n.isMajorityMatchIndexGreaterThanN(newCI); newCI++ {
+	fname := "UpdateMyCommitIndexWhenIamLeader()"
+
+	for newCI := n.getCommitIndex() + 1; n.isMajorityMatchIndexGreaterThanOrEqualsTo(newCI); newCI++ {
+		log.Printf("%v:newCI=%v", fname, newCI)
 		term, err := n.getNodeLogEntryTermByIndex(newCI)
 		if err == nil && term == n.getCurrentTerm() {
 			n.setCommitIndex(newCI)
+			break
 		}
 	}
+	log.Printf("%v: My commitIndex=%v", fname, n.getCommitIndex())
 }
 
 //UpdateMyCommitIndexWhenIamFollower : update commitIndex when node is a follower
@@ -301,11 +331,12 @@ func (n *Node) appendEntryFromLeaderToMyNodeLog(logEntries []*raft_rpc.LogEntry)
 			Term: logEntries[i].Term,
 			Text: logEntries[i].Text,
 		}
-		n.addToNodeLog(logEntry)
+		n.addEntryToNodeLog(logEntry)
 	}
 }
 
 func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
+	fname := "prepareNodeLogToAppend()"
 	myLastLogIndex := n.getLastNodeLogEntryIndex()
 	peerNextIndex := peer.GetNextIndex()
 	if myLastLogIndex >= peerNextIndex {
@@ -318,8 +349,10 @@ func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
 			}
 			toAppend = append(toAppend, logEntry)
 		}
+		log.Printf("%v: The length of append log=%v", fname, len(toAppend))
 		return toAppend
 	}
+	log.Printf("%v: No log to append to [%v]", fname, peer.GetAddress().GenerateUName())
 	return nil
 }
 
@@ -493,12 +526,12 @@ func (s *server) ExecuteCommand(ctx context.Context, in *raft_rpc.ExecuteCommand
 		}
 	} else if in.GetMode() == common.CommandModeSet.ToString() {
 		node := getNodeInstance()
-		prevLogIndex := node.addCmdToNodeLog(in.GetText())
+		prevLogIndex := node.addStringToNodeLog(in.GetText())
 		log.Printf("%v: prevLogIndex=%v", fname, prevLogIndex)
 		prevLogTerm, rc := node.getNodeLogEntryTermByIndex(prevLogIndex)
 		if rc == nil {
-			node.appendLogToFollowers(prevLogIndex, prevLogTerm)
 			log.Printf("%v: prevLogTerm=%v", fname, prevLogTerm)
+			node.appendLogToFollowers(prevLogIndex, prevLogTerm)
 		} else {
 			log.Printf("%v: err of getNodeLogEntryTermByIndex=%v", fname, rc.Error())
 		}
