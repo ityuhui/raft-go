@@ -19,6 +19,7 @@ import (
 const (
 	electionTimeout    = 5
 	incElectionTimeout = 1
+	nodeLogStartIndex  = 1
 )
 
 //Node : data structure for node
@@ -174,7 +175,7 @@ func (n *Node) sendHeartBeatToFollowers() {
 func (n *Node) appendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) {
 	fname := "appendLogToFollower"
 	log.Printf("%v: enter...prevLogIndex=%v, prevLogTerm=%v, ", fname, prevLogIndex, prevLogTerm)
-	var err error
+	err := n.sendHeartBeatOrAppendLogToFollower(peer, prevLogIndex, prevLogTerm)
 	for ; err != nil; err = n.sendHeartBeatOrAppendLogToFollower(peer, prevLogIndex, prevLogTerm) {
 		peer.DecreaseNextIndex()
 		log.Printf("%v: [%v] nextIndex=%v, ", fname, peer.GetAddress().GenerateUName(), peer.GetNextIndex())
@@ -193,6 +194,7 @@ func (n *Node) appendLogToFollowers(prevLogIndex int64, prevLogTerm int64) {
 		go n.appendLogToFollower(peer, prevLogIndex, prevLogTerm)
 	}
 	g_wg4appendingLogToFollowers.Wait()
+	log.Printf("%v: exit...", fname)
 }
 
 func (n *Node) gotoElectionPeriod() {
@@ -230,24 +232,30 @@ func (n *Node) initPeersNextIndexAndMatchIndex() {
 
 // node log operations
 func (n *Node) getNodeLogLength() int64 {
+	//fname := "getNodeLogLength()"
+	//log.Printf("%v: nodeLength=%v", fname, int64(len(n.getNodeLog())))
+	/*for _, logitem := range n.nodeLog {
+		log.Printf("%v: %v-%v", fname, logitem.Text, logitem.Term)
+	}*/
+
 	return int64(len(n.getNodeLog()))
 }
 
 func (n *Node) getNodeLogEntryTermByIndex(index int64) (int64, error) {
-	logEntry := n.getNodeLog()[index]
-	if logEntry != nil {
-		return logEntry.Term, nil
+	if index < nodeLogStartIndex || index > n.getNodeLogLength() {
+		return 0, errors.New("The log entry does not exist")
 	}
-	return 0, errors.New("The log entry does not exist")
+	logEntry := n.getNodeLog()[index]
+	return logEntry.Term, nil
 }
 
 func (n *Node) getLastNodeLogEntryIndex() int64 {
-	return n.getNodeLogLength()
+	return n.getNodeLogLength() - 1
 }
 
 func (n *Node) addEntryToNodeLog(entry *LogEntry) int64 {
 	n.nodeLog = append(n.nodeLog, entry)
-	return n.getNodeLogLength()
+	return n.getLastNodeLogEntryIndex()
 }
 
 func (n *Node) addStringToNodeLog(log string) int64 {
@@ -256,7 +264,7 @@ func (n *Node) addStringToNodeLog(log string) int64 {
 		Text: log,
 	}
 	n.nodeLog = append(n.nodeLog, entry)
-	return int64(len(n.nodeLog) - 1) // The beginning index is 0
+	return n.getLastNodeLogEntryIndex()
 }
 
 //applyNodeLogToStateMachine : execute the command from node log in state machine
@@ -339,10 +347,11 @@ func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
 	fname := "prepareNodeLogToAppend()"
 	myLastLogIndex := n.getLastNodeLogEntryIndex()
 	peerNextIndex := peer.GetNextIndex()
+	log.Printf("%v: myLastLogIndex=%v, peerNextIndex=%v", fname, myLastLogIndex, peerNextIndex)
 	if myLastLogIndex >= peerNextIndex {
 		toAppend := []*raft_rpc.LogEntry{}
 		var i int64
-		for i = 0; i < peerNextIndex; i++ {
+		for i = 1; i < peerNextIndex; i++ {
 			logEntry := &raft_rpc.LogEntry{
 				Term: n.getNodeLog()[i].Term,
 				Text: n.getNodeLog()[i].Text,
@@ -358,6 +367,8 @@ func (n *Node) prepareNodeLogToAppend(peer *Peer) []*raft_rpc.LogEntry {
 
 // append log
 func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64, prevLogTerm int64) error {
+	fname := "sendHeartBeatOrAppendLogToFollower()"
+	log.Printf("%v: enter...", fname)
 	// Set up a connection to the server.
 	addr := peer.GetAddress()
 
@@ -380,9 +391,9 @@ func (n *Node) sendHeartBeatOrAppendLogToFollower(peer *Peer, prevLogIndex int64
 		LeaderCommit: n.getCommitIndex(),
 	})
 	if err != nil {
-		log.Fatalf("could not tell my heart beat: %v", err)
+		log.Fatalf("%v: could not tell my heart beat: %v", fname, err)
 	}
-	log.Printf("Telling: %s", r.GetMessage())
+	log.Printf("%v: Telling: %s", fname, r.GetMessage())
 	return nil
 }
 
